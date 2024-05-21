@@ -2,9 +2,6 @@ from .base import BaseProtocol, BaseHoneypot
 from .libs import dns
 
 import asyncio
-import time
-import json
-import binascii
 
 #TODO
 #TCP part handling
@@ -59,7 +56,7 @@ class DnsUdpProtocol(BaseProtocol):
 
         # need to specify src_ip and src_port because self.transport endpoint is not connected
         src_ip, src_port = addr
-        self.logger.log(self.logger.LOG_DNS_QUERY, self.transport, {"src_ip": src_ip, "src_port": src_port, "query": decoded_packet})
+        self.logger.log(self.protocol_name + "." + self.logger.EXTRA, self.transport, extra={"src_ip": src_ip, "src_port": src_port, "query": decoded_packet})
 
 
         transport, protocol = await self.loop.create_datagram_endpoint(

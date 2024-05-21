@@ -17,7 +17,7 @@ class TelnetProtocol(BaseProtocol):
 
     def connection_made(self, transport):
         self.transport = transport
-        self.log_data("connection_made", self.transport.get_extra_info('peername'), time.time())
+        self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
 
         self.transport.write(b"\xff\xfb\x01\xff\xfb\x03\xff\xfb\0\xff\xfd\0\xff\xfd\x1f\r\n")
         self.transport.write(b"\nUser Access Verification\r\n\r\n")

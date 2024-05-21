@@ -1,58 +1,17 @@
-from datetime import datetime
-import asyncio, httpx, base64, redis, time, json
+from datetime import datetime, timezone
+import asyncio, httpx, base64, redis, time, json, binascii
 
 class BaseLogger(object):
-
-    LOG_DEVICE_BOOT                             = "trapster.device.boot"
-    LOG_DEVICE_MSG                              = "trapster.device.message"
-    LOG_DEVICE_DEBUG                            = "trapster.device.debug"
-    LOG_DEVICE_ERROR                            = "trapster.device.error"
-    LOG_DEVICE_PING                             = "trapster.device.ping"
-    LOG_DEVICE_CONFIG_SAVE                      = "trapster.device.config"
-
-    LOG_BASE_CONNECTION_MADE                    = "trapster.base.connection"
-    LOG_BASE_DATA_RECEIVED                      = "trapster.base.data"
-
-    LOG_FTP_CONNECTION_MADE                     = "trapster.ftp.connection"
-    LOG_FTP_DATA_RECEIVED                       = "trapster.ftp.data"
-    LOG_FTP_LOGIN                               = "trapster.ftp.login"
-
-    LOG_SSH_CONNECTION_MADE                     = "trapster.ssh.connection"
-    LOG_SSH_LOGIN                               = "trapster.ssh.login"
-
-    LOG_DNS_QUERY                               = "trapster.dns.query"
-
-    LOG_HTTP_GET                                = "trapster.http.get"
-    LOG_HTTP_POST                               = "trapster.http.post"
-    LOG_HTTP_BASIC                              = "trapster.http.basic"
-    
-    LOG_LDAP_CONNECTION_MADE                    = "trapster.ldap.connection"
-    LOG_LDAP_DATA_RECEIVED                      = "trapster.ldap.data"
-    LOG_LDAP_LOGIN                              = "trapster.ldap.login"
-    LOG_LDAP_SEARCH                             = "trapster.ldap.search"
-
-    LOG_VNC_CONNECTION_MADE                     = "trapster.vnc.connection"
-    LOG_VNC_DATA_RECEIVED                       = "trapster.vnc.data"
-    LOG_VNC_AUTH                                = "trapster.vnc.auth"
-
-    LOG_MYSQL_CONNECTION_MADE                   = "trapster.mysql.connection"
-    LOG_MYSQL_DATA_RECEIVED                     = "trapster.mysql.data"
-    LOG_MYSQL_LOGIN                             = "trapster.mysql.login"
-    LOG_MYSQL_UNRECOGNIZED                      = "trapster.mysql.unrecognized"
-
-    LOG_POSTGRES_CONNECTION_MADE                = "trapster.postgres.connection"
-    LOG_POSTGRES_DATA_RECEIVED                  = "trapster.postgres.data"
-    LOG_POSTGRES_LOGIN                          = "trapster.postgres.login"
-
-    LOG_RDP_CONNECTION_MADE                     = "trapster.rdp.connection"
-    LOG_RDP_DATA_RECEIVED                       = "trapster.rdp.data"
-    LOG_RDP_LOGIN                               = "trapster.rdp.login"
+    CONNECTION  = "connection"
+    DATA        = "data"
+    LOGIN       = "login"
+    EXTRA       = "extra"
     
     def __init__(self, node_id):
         self.node_id = node_id
         self.whitelist_ips = []
 
-    def parse_log(self, logtype, transport, extra={}):
+    def parse_log(self, logtype, transport, data='', extra={}):
         try:
             dst_ip, dst_port = transport.get_extra_info('sockname')
         except:
@@ -68,11 +27,12 @@ class BaseLogger(object):
             src_port = extra.pop("src_port", 1)
 
         if src_ip in self.whitelist_ips or dst_ip == "255.255.255.255":
+            # ignore because IP in whitelist
             return
         else:
-            # data are always byte encoded, so we need to use base64
-            if extra.get('data', False):
-                extra['data'] = base64.b16encode(extra['data']).decode()
+            if data:
+                # Convert data in Hex format
+                data = binascii.hexlify(data).decode()
 
             event = {
                 "device": self.node_id,
@@ -81,19 +41,20 @@ class BaseLogger(object):
                 "dst_port": dst_port,
                 "src_ip": src_ip,
                 "src_port": src_port,
-                "timestamp": str(datetime.utcnow()),
-                "extra": extra,
+                "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f'),
+                "data": data,
+                "extra": extra
             }
 
             return event
         
-    def log(self, logtype, transport, extra={}):
-        event = self.parse_log(logtype, transport, extra)
+    def log(self, logtype, transport, data='', extra={}):
+        event = self.parse_log(logtype, transport, data, extra)
         return event
 
 class JsonLogger(BaseLogger):
-    def log(self, logtype, transport, extra={}):
-        event = self.parse_log(logtype, transport, extra)
+    def log(self, logtype, transport, data='', extra={}):
+        event = self.parse_log(logtype, transport, data, extra)
             
         if event:
             print(event)
@@ -104,8 +65,8 @@ class RedisLogger(BaseLogger):
         self.whitelist_ips = []
         self.r = redis.Redis(host=host, port=port)
 
-    def log(self, logtype, transport, extra={}):
-        event = self.parse_log(logtype, transport, extra)
+    def log(self, logtype, transport, data='', extra={}):
+        event = self.parse_log(logtype, transport, data, extra)
         
         if event:
             # Add the event to the sorted set using its timestamp as the primary score
@@ -119,8 +80,8 @@ class ApiLogger(BaseLogger):
         self.headers = {'Authorization': f'token {api_key}'}
         self.whitelist_ips = []
 
-    def log(self, logtype, transport, extra={}):
-        event = self.parse_log(logtype, transport, extra)
+    def log(self, logtype, transport, data='', extra={}):
+        event = self.parse_log(logtype, transport, data, extra)
             
         if event:
             loop = asyncio.get_event_loop()            

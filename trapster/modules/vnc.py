@@ -29,13 +29,13 @@ class VncProtocol(BaseProtocol):
     def connection_made(self, transport):
         self.transport = transport
         
-        self.logger.log(self.logger.LOG_VNC_CONNECTION_MADE, self.transport)
+        self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
         
         self.transport.write(self.versions[self.config['server_version']])
         self.state = 'wait_pversion'
         
     def data_received(self, data):
-        self.logger.log(self.logger.LOG_VNC_DATA_RECEIVED, self.transport, {"data": data})
+        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
 
         if self.state == 'wait_pversion':
             if data == self.versions[self.config['server_version']]:
@@ -82,7 +82,7 @@ class VncProtocol(BaseProtocol):
         self.transport.write(b'Authentication failure') #message
         self.transport.close()
         
-        self.logger.log(self.logger.LOG_VNC_AUTH, self.transport, {'response': response.decode(),'challenge': challenge.decode()})
+        self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={'response': response.decode(), 'challenge': challenge.decode()})
 
     def unrecognized_data(self, data):
         self.transport.close()

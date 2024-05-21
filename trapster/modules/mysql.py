@@ -31,14 +31,13 @@ class MysqlProtocol(BaseProtocol):
     def connection_made(self, transport):
         self.transport = transport
 
-        self.logger.log(self.logger.LOG_MYSQL_CONNECTION_MADE, self.transport)
+        self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
 
         # send initial handshake
         self.transport.write(self.build_packet(self.initial_handshake(), 0))
         
     def data_received(self, data):    
-        
-        self.logger.log(self.logger.LOG_MYSQL_DATA_RECEIVED, self.transport, {"data":data})
+        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
 
         capability_flag = int.from_bytes(data[0x04:0x08], 'little')
 
@@ -70,7 +69,7 @@ class MysqlProtocol(BaseProtocol):
         
         extra_details = data[password_end:]
 
-        self.logger.log(self.logger.LOG_MYSQL_LOGIN, self.transport, {'username':username, 'password':password, 'data':extra_details})
+        self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={'username':username, 'password':password, 'data':extra_details})
 
         local_ip, local_port = self.transport.get_extra_info('sockname')
 
@@ -82,7 +81,7 @@ class MysqlProtocol(BaseProtocol):
         )
 
     def unrecognized_data(self, data):
-        self.logger.log(self.logger.LOG_MYSQL_UNRECOGNIZED, self.transport, {'data':data})
+        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
         self.transport.close()
 
     def initial_handshake(self):

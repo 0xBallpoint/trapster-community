@@ -23,11 +23,11 @@ class PostgresProtocol(BaseProtocol):
         self.transport = transport
         self._state = 1
         self._variables = {}
-        self.logger.log(self.logger.LOG_POSTGRES_CONNECTION_MADE, self.transport)
+        self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
         
     def data_received(self, data):    
         
-        self.logger.log(self.logger.LOG_POSTGRES_DATA_RECEIVED, self.transport, {"data":data})
+        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
 
         if self._state == 1:
             if data == b'\x00\x00\x00\x08\x04\xd2\x16/': # SSLRequest
@@ -50,7 +50,7 @@ class PostgresProtocol(BaseProtocol):
                 username = self.check_bytes(self._variables['user'])
                 password = self.check_bytes(self._variables['password'])
                 
-                self.logger.log(self.logger.LOG_POSTGRES_LOGIN, self.transport, {"username": username, "password": password})
+                self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username": username, "password": password})
 
                 # based on https://www.postgresql.org/docs/current/protocol-message-formats.html
                 # ErrorResponse

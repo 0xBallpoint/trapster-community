@@ -61,7 +61,7 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
 
     def connection_made(self, transport: asyncssh.SSHServerConnection) -> None:
         self.transport = transport
-        self.logger.log(self.logger.LOG_SSH_CONNECTION_MADE, self.transport)
+        self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
 
     def begin_auth(self, username: str) -> bool:
         # If the user's password is the empty string, no auth is required
@@ -75,7 +75,7 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
         return False
 
     def validate_password(self, username: str, password: str) -> bool:
-        self.logger.log(self.logger.LOG_SSH_LOGIN, self.transport, {"username":username, "password":password})
+        self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username":username, "password":password})
         return False
         #return self.passwords.get(username) == password
 

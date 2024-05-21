@@ -19,11 +19,11 @@ class BaseProtocol(asyncio.Protocol):
 
     def connection_made(self, transport) -> None:
         self.transport = transport
-        self.logger.log(self.logger.LOG_BASE_CONNECTION_MADE, self.transport)
+        self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
         self.transport.close()
         
     def data_received(self, data):
-        self.logger.log(self.logger.LOG_BASE_DATA_RECEIVED, self.transport, {'data':data})
+        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
         self.transport.close()
 
     def connection_lost(self, exc: Optional[Exception]) -> None:

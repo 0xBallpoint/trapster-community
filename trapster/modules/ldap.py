@@ -25,11 +25,11 @@ class LdapProtocol(BaseProtocol):
         
     def connection_made(self, transport) -> None:
         self.transport = transport
-        self.logger.log(self.logger.LOG_LDAP_CONNECTION_MADE, self.transport)
+        self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
 
     def data_received(self, data):
         # process request
-        self.logger.log(self.logger.LOG_LDAP_DATA_RECEIVED, self.transport, {'data': data})
+        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
         
         responses = self.process_request(data)
         if responses:
@@ -97,7 +97,7 @@ class LdapProtocol(BaseProtocol):
                 msg['matchedDN'] = ''
                 msg['diagnosticMessage'] = '8009030C: LdapErr: DSID-0C090569, comment: AcceptSecurityContext error, data 2030, v4f7c'
             
-            self.logger.log(self.logger.LOG_LDAP_LOGIN, self.transport, {'username':username, 'password':password})
+            self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={'username':username, 'password':password})
 
         elif authentication == 'sasl':
             #TODO
@@ -114,7 +114,7 @@ class LdapProtocol(BaseProtocol):
         scope = str(protocolOp['searchRequest']['scope'])
         msg = ldapasn1.SearchResultDone()
 
-        self.logger.log(self.logger.LOG_LDAP_SEARCH, self.transport, {'scope': scope})
+        self.logger.log(self.protocol_name + "." + self.logger.EXTRA, self.transport, extra={'scope': scope})
 
         if scope == 'baseObject':
             # return informations about server

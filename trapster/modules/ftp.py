@@ -28,14 +28,14 @@ class FtpProtocol(BaseProtocol):
     def connection_made(self, transport) -> None:
         self.transport = transport
 
-        self.logger.log(self.logger.LOG_FTP_CONNECTION_MADE, self.transport)
+        self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
        
         self.transport.write(b'220 ' + bytes(self.config['banner'], "utf-8") + b'\r\n')
 
     def data_received(self, data):
         # log all data received : print(binascii.hexlify(data))
       
-        self.logger.log(self.logger.LOG_FTP_DATA_RECEIVED, self.transport, {"data": data})
+        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
         try:
             cmd = data[:4].decode()
             client_input = data[5:].decode().strip('\r\n')
@@ -64,7 +64,7 @@ class FtpProtocol(BaseProtocol):
         if not self.user:
             self.transport.write(b"503 Login with USER first.\r\n")
         elif self.user:
-            self.logger.log(self.logger.LOG_FTP_LOGIN, self.transport, {"username": str(self.user), "password": str(self.password)})
+            self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username": str(self.user), "password": str(self.password)})
 
             self.transport.write(b"530 Authentication Failed\r\n")
 

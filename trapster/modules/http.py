@@ -214,17 +214,16 @@ class HttpProtocol(BaseProtocol):
         except:
             post_data = b'error'
 
-        extra = {"method":request.get('method'), "version" : request.get('version'), "target":request.get('target'), "headers": request.get('headers')}
+        extra = {"method":request.get('method'), "basic": False, "version" : request.get('version'), "target":request.get('target'), "headers": request.get('headers')}
         if post_data != b'':
             extra["data"] = post_data
 
-        # Log request
+        # If Authorization Header : basic auth is True
         if request["headers"].get("Authorization"):
-            self.logger.log(self.logger.LOG_HTTP_BASIC, self.transport, extra)
-        elif request['method'] == 'GET':
-            self.logger.log(self.logger.LOG_HTTP_GET, self.transport, extra)
-        elif request['method'] == 'POST':
-            self.logger.log(self.logger.LOG_HTTP_POST, self.transport, extra)
+            extra['basic'] = True
+
+        # Log request
+        self.logger.log(self.protocol_name + "." + self.logger.EXTRA, self.transport, extra=extra)
 
         return request
 

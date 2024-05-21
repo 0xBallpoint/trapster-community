@@ -13,13 +13,12 @@ class RdpProtocol(BaseProtocol):
 
     def connection_made(self, transport) -> None:
         self.transport = transport
-
-        self.logger.log(self.logger.LOG_RDP_CONNECTION_MADE, self.transport)
+        self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
        
 
     def data_received(self, data):
       
-        self.logger.log(self.logger.LOG_RDP_DATA_RECEIVED, self.transport, {"data": data})
+        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
 
         decoded_data = data.decode(encoding="utf-8", errors="ignore")
         # Use regex to extract the username.
@@ -27,7 +26,7 @@ class RdpProtocol(BaseProtocol):
         username = match and match.groupdict().get("username")
 
         if self.initial_connection:
-            self.logger.log(self.logger.LOG_RDP_LOGIN, self.transport, {"username": username, "password": ''})        
+            self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username": username, "password": ''})
 
             # Respond as an NLA-enabled RDP server
             self.transport.write(
