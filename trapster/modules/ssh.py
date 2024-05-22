@@ -6,6 +6,9 @@ from cryptography.hazmat.backends import default_backend
 
 import asyncio, asyncssh, os, datetime
 
+from typing import Optional
+from asyncssh.public_key import SSHKeyPair
+
 async def handle_client(process: asyncssh.SSHServerProcess) -> None:
     """
     Not used, but can be used if we want to allow SSH connection with a very simple simulated prompt
@@ -71,13 +74,29 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
     def password_auth_supported(self) -> bool:
         return True
 
-    def kbdint_auth_supported(self) -> bool:
-        return False
-
-    def validate_password(self, username: str, password: str) -> bool:
+    async def validate_password(self, username: str, password: str) -> bool:
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username":username, "password":password})
         return False
         #return self.passwords.get(username) == password
+
+    def public_key_auth_supported(self) -> bool:
+        return True
+    
+    async def validate_public_key(self, username, key):
+        key_type = key.get_algorithm()
+        key_data = key.export_public_key().decode()
+        fingerprint = key.get_fingerprint()
+        
+        self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={
+            "username":username, 
+            "key_type":key_type, 
+            "key_data":key_data,
+            "fingerprint": fingerprint
+        })
+        return False
+
+    def kbdint_auth_supported(self) -> bool:
+        return False
 
     # from https://asyncssh.readthedocs.io/en/latest/_modules/asyncssh/connection.html
     def _send_version(self) -> None:
@@ -92,6 +111,7 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
             self.set_extra_info(server_version=version.decode('ascii'))
 
         self._send(version + b'\r\n')
+
 
     asyncssh.connection.SSHConnection._send_version = _send_version
 
