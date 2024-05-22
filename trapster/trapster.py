@@ -39,6 +39,8 @@ class TrapsterManager:
                     server = PostgresHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'ldap':
                     server = LdapHoneypot(service_config, self.logger, bindaddr=ip)
+                elif service_type == 'rdp':
+                    server = RdpHoneypot(service_config, self.logger, bindaddr=ip)
                 else:
                     print(f"[-] Unreconized service {service_type}")
                     break
