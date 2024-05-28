@@ -1,9 +1,8 @@
 from .base import BaseProtocol, BaseHoneypot
-
 import asyncio
 import binascii
 import time
-import sys
+
 
 class TelnetProtocol(BaseProtocol):
 
@@ -11,49 +10,87 @@ class TelnetProtocol(BaseProtocol):
         if config:
             self.config = config
         self.protocol_name = "telnet"
-        self.username = b''
-        self.password = b''
+        self.username = ''
+        self.password = ''
+        self.buffer = ''  # Buffer to accumulate data
         self.state = 0
 
     def connection_made(self, transport):
+        '''self.transport = transport
+        connection_data = {
+            "transport": str(self.transport),
+            "peername": self.transport.get_extra_info('peername')
+        }'''
         self.transport = transport
-        self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
 
-        self.transport.write(b"\xff\xfb\x01\xff\xfb\x03\xff\xfb\0\xff\xfd\0\xff\xfd\x1f\r\n")
-        self.transport.write(b"\nUser Access Verification\r\n\r\n")
-        self.transport.write(b"Username: ")
+        self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
+        self.transport.write(b"\xff\xfb\x01\xff\xfb\x03\xff\xfb\x00\xff\xfd\x00\xff\xfd\x1f\r\n")
+        self.transport.write(self.config.get('banner').encode('utf-8') + b"\r\n")
+        self.transport.write(b"User Access Verification\r\n\r\nUsername: ")
         self.state = 1
-        
+
     def data_received(self, data):
-        print(data)
-        if data == b'\xff\xfd\x01\xff\xfd\x03\xff\xfd\x00\xff\xfb\x00\xff\xfb\x1f\xff\xfa\x1f\x00e\x00\x1b\xff\xf0':
-            self.state = 1
+        # Ignore telnet negotiation sequences
+        if data.startswith(b'\xff'):
             return
 
-        if data == b'\x03': #CTRL-C
+        if data == b'\x03':  # CTRL-C
             print('Closing!!')
-            self.connection_lost(None)
-        else:
-            if self.state == 1:
-                if data == b'\x0D' or data == b'\r' or data[-1] == 0: #ENTER
+            self.transport.close()
+            return
+
+        for char in data:
+            if char == ord(b'\r') or char == ord(b'\n'):  # Check for Enter key
+                line = self.buffer.strip()
+                self.buffer = ''
+
+                if self.state == 1:
+                    self.username = line
                     self.state = 2
                     self.transport.write(b"\r\nPassword: ")
-                else:
-                    self.transport.write(data)
-                    self.username += data 
+                elif self.state == 2:
+                    self.password = line
+                    self.transport.write(b"\r\n")  # Move to a new line after password entry
+                    username = self.username.strip()
+                    password = self.password.strip()
+                    self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
+                    self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
+                    self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport,
+                                    extra={"username": str(self.username), "password": str(self.password)})
 
-            elif self.state == 2:
-                if data == b'\x0D' or data[-1] == 0: #ENTER
-                    self.state = 1
-                    self.transport.write(b"\r\n% Login invalid\r\n\r\n")
-                    self.transport.write(b"Username: ")
-                    print(self.username + b' / ' + self.password)
-                    self.username = b''
-                else:
-                    self.password += data 
-                
+                    self.state = 3
+                    if self.check_credentials(username, password):
+                        self.transport.write(b"===============================================================================\r\n\r\n")
+                        self.transport.write(b"Microsoft  Telnet Server\r\n\r\n")
+                        self.transport.write(b"===============================================================================\r\n\r\n")
+
+                        self.transport.write(b"root@OGM:~$  ")
+                        print(data)
+                    else:
+                        self.transport.write(b"\r\n% Login invalid\r\n\r\n")
+                        self.transport.write(b"Username: ")
+                        self.username = ''
+                        self.password = ''
+                        self.state = 1
+            else:
+                # Echo the character back to the client for username
+                if self.state == 1:
+                    self.transport.write(bytes([char]))
+                # Replace the character with '*' for password
+                elif self.state == 2:
+                    self.transport.write(b'')
+                # Add the character to the buffer
+                self.buffer += chr(char)
+
+    def check_credentials(self, username, password):
+        return username == self.config.get('username') and password == self.config.get('password')
+
+    '''def connection_lost(self, exc):
+        self.logger.log(self.protocol_name + ".CONNECTION_LOST", self.transport)    '''
+
     def unrecognized_data(self, data):
-        self.log_data('unrecognized_data', self.transport.get_extra_info('peername')[0], time.time(), {"data":data})
+        self.logger.log('unrecognized_data', self.transport.get_extra_info('peername')[0],
+                        binascii.hexlify(data).decode())
         self.transport.close()
 
 
