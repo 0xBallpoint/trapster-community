@@ -1,3 +1,12 @@
 {
-   "signedContributors": []
+  "signedContributors": [
+    {
+      "name": "hilarex",
+      "id": 60436889,
+      "comment_id": 2143442421,
+      "created_at": "2024-06-01T13:03:55Z",
+      "repoId": 799870612,
+      "pullRequestNo": 3
+    }
+  ]
 }
