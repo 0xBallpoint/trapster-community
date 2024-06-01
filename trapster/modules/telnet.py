@@ -1,61 +1,109 @@
 from .base import BaseProtocol, BaseHoneypot
 
-import asyncio
-import binascii
-import time
-import sys
+# Telnet command definitions
+IAC  = b'\xff'  # Interpret as Command
+WILL = b'\xfb'
+WONT = b'\xfc'
+DO   = b'\xfd'
+DONT = b'\xfe'
+SE   = b'\xf0'  # End of subnegotiation parameters
+NOP  = b'\xf1'  # No operation
+DM   = b'\xf2'  # Data mark
+BRK  = b'\xf3'  # Break
+IP   = b'\xf4'  # Interrupt process
+AO   = b'\xf5'  # Abort output
+AYT  = b'\xf6'  # Are you there
+EC   = b'\xf7'  # Erase character
+EL   = b'\xf8'  # Erase line
+GA   = b'\xf9'  # Go ahead
+SB   = b'\xfa'  # Subnegotiation of the indicated option follows
 
 class TelnetProtocol(BaseProtocol):
-
+    """
+    Telnet Honeypot server based on https://www.rfc-editor.org/rfc/rfc854
+    """
+    
     def __init__(self, config=None):
         if config:
             self.config = config
         self.protocol_name = "telnet"
         self.username = b''
         self.password = b''
-        self.state = 0
+        self.state = 'USERNAME'
+
+        self.banner = {
+            "D-Link DSL router": b"\xff\xfd\x01\xff\xfd!\xff\xfb\x01\xff\xfb\x03\r\nlogin: "
+        }
 
     def connection_made(self, transport):
         self.transport = transport
         self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
 
-        self.transport.write(b"\xff\xfb\x01\xff\xfb\x03\xff\xfb\0\xff\xfd\0\xff\xfd\x1f\r\n")
-        self.transport.write(b"\nUser Access Verification\r\n\r\n")
-        self.transport.write(b"Username: ")
-        self.state = 1
-        
+        self.transport.write(self.banner[self.config['banner']])
+
     def data_received(self, data):
-        print(data)
-        if data == b'\xff\xfd\x01\xff\xfd\x03\xff\xfd\x00\xff\xfb\x00\xff\xfb\x1f\xff\xfa\x1f\x00e\x00\x1b\xff\xf0':
-            self.state = 1
-            return
 
-        if data == b'\x03': #CTRL-C
-            print('Closing!!')
-            self.connection_lost(None)
+        if IAC in data:
+            self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
+            self.handle_telnet_command(data)
         else:
-            if self.state == 1:
-                if data == b'\x0D' or data == b'\r' or data[-1] == 0: #ENTER
-                    self.state = 2
-                    self.transport.write(b"\r\nPassword: ")
-                else:
-                    self.transport.write(data)
-                    self.username += data 
+            self.handle_user_input(data)
 
-            elif self.state == 2:
-                if data == b'\x0D' or data[-1] == 0: #ENTER
-                    self.state = 1
-                    self.transport.write(b"\r\n% Login invalid\r\n\r\n")
-                    self.transport.write(b"Username: ")
-                    print(self.username + b' / ' + self.password)
-                    self.username = b''
+    def handle_telnet_command(self, data):
+        # Handle incoming Telnet commands here
+        i = 0
+        while i < len(data):
+            if data[i] == IAC[0]:
+                i += 1
+                if i < len(data) and data[i] in [WILL[0], WONT[0], DO[0], DONT[0]]:
+                    option = data[i]
+                    i += 1
+                    if i < len(data):
+                        option_code = data[i]
+                        # For simplicity, we'll just respond with DONT for DO and WONT for WILL
+                        if option == DO[0]:
+                            self.transport.write(IAC + DONT + bytes([option_code]))
+                        elif option == WILL[0]:
+                            self.transport.write(IAC + WONT + bytes([option_code]))
+                        i += 1
                 else:
-                    self.password += data 
-                
-    def unrecognized_data(self, data):
-        self.log_data('unrecognized_data', self.transport.get_extra_info('peername')[0], time.time(), {"data":data})
+                    # Handle other Telnet commands like SE, NOP, etc.
+                    i += 1
+            else:
+                i += 1
+
+    def handle_user_input(self, data):
+        if data == b"\x7f":  # DEL character
+            self.erase_character()
+        
+        if self.state == 'USERNAME':
+            if b'\n' in data or b'\r' in data:
+                self.transport.write(b"\r\nPassword: ")
+                self.state = 'PASSWORD'
+            else:
+                self.username += data
+                self.transport.write(data)
+        elif self.state == 'PASSWORD':
+            if b'\n' in data or b'\r' in data:
+                self.authenticate()
+            else:
+                self.password += data
+
+    def erase_character(self):
+        # Intentionally not removing data from self.username or self.password, to keep informations
+        # Send backspace to client
+        self.transport.write(b'\b \b')
+
+    def authenticate(self):
+        print(self.username)
+        print(self.password)
+        self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username": self.username, "password": self.password})
+        self.transport.write(b"\r\nLogin incorrect.\r\n")
         self.transport.close()
 
+    def unrecognized_data(self, data):
+        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
+        self.transport.close()
 
 class TelnetHoneypot(BaseHoneypot):
 
