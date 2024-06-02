@@ -31,7 +31,7 @@ Visit the [Trapster website](https://trapster.cloud) to learn more about our com
 To install Trapster, clone the repository and use `setup.py` to install the dependencies:
 
 ```bash
-git clone https://github.com/0xBallpoint/trapster.git
+git clone https://github.com/0xBallpoint/trapster-community/
 cd trapster
 python -m venv venv
 source ./venv/bin/activate
@@ -42,9 +42,12 @@ python setup.py install
 ### Running the Daemon
 
 After installation, to start the Trapster daemon, simply use the trapster command inside your folder:
-
 ```bash
 trapster
+```
+In development mode, you can use the main script:
+```bash
+python3 main.py
 ```
 
 ## Configuration
