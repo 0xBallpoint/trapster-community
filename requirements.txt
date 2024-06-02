@@ -1,0 +1,6 @@
+httpx>=0.27.0
+netifaces>=0.11.0
+pyasn1>=0.4.8
+redis>=5.0.4
+cryptography>=38.0.4
+asyncssh>=2.14.2

@@ -95,9 +95,9 @@ class TelnetProtocol(BaseProtocol):
         self.transport.write(b'\b \b')
 
     def authenticate(self):
-        print(self.username)
-        print(self.password)
-        self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username": self.username, "password": self.password})
+        username = self.username.decode('utf-8', errors='replace')
+        password = self.password.decode('utf-8', errors='replace')
+        self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username": username, "password": password})
         self.transport.write(b"\r\nLogin incorrect.\r\n")
         self.transport.close()
 

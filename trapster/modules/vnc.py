@@ -1,8 +1,6 @@
 from .base import BaseProtocol, BaseHoneypot
 
-import asyncio
 import binascii
-import time
 from typing import Optional
 
 #TODO add SSL support

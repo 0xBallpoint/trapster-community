@@ -1,6 +1,5 @@
 from .base import BaseProtocol, BaseHoneypot
 
-import asyncio
 import re
 
 class RdpProtocol(BaseProtocol):

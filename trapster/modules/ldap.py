@@ -2,14 +2,6 @@ from .base import BaseProtocol, BaseHoneypot
 from .libs import ldapasn1
 from pyasn1.codec.ber import decoder
 
-import asyncio
-import time
-import binascii
-import base64
-
-
-import re
-import struct
 from datetime import datetime
 
 

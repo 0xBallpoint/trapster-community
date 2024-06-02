@@ -1,7 +1,4 @@
 import asyncio
-import json
-import time
-import datetime
 from typing import Optional
 
 # https://svn.nmap.org/nmap/nmap-service-probes

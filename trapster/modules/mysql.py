@@ -1,9 +1,5 @@
 from .base import BaseProtocol, BaseHoneypot
 
-import asyncio
-import binascii
-import time
-import sys
 import struct
 import os
 
@@ -69,7 +65,7 @@ class MysqlProtocol(BaseProtocol):
         
         extra_details = data[password_end:]
 
-        self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={'username':username, 'password':password, 'data':extra_details})
+        self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={'username':username, 'password':password, 'details':extra_details})
 
         local_ip, local_port = self.transport.get_extra_info('sockname')
 
@@ -126,7 +122,6 @@ class MysqlProtocol(BaseProtocol):
         packet = error_packet + error_code + sql_state + message
         
         return packet
-
 
 
     def build_packet(self, payload, id):
