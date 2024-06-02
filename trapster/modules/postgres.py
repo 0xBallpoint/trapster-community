@@ -1,11 +1,5 @@
 from .base import BaseProtocol, BaseHoneypot
 
-import asyncio
-import binascii
-import time
-import sys
-import struct
-import os
 from struct import unpack
 
 class PostgresProtocol(BaseProtocol):

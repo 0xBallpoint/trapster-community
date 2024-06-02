@@ -1,12 +1,5 @@
 from .base import BaseProtocol, BaseHoneypot
 
-import asyncio
-import time
-import binascii
-import base64
-
-# TODO improve ftp by logging all command, add ProFTPD 1.2.10
-
 class FtpProtocol(BaseProtocol):
 
     config = {

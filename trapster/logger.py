@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-import asyncio, httpx, redis, time, json, binascii
+import asyncio, httpx, redis, json, binascii
 
 class BaseLogger(object):
     CONNECTION  = "connection"

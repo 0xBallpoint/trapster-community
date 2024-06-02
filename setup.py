@@ -18,30 +18,13 @@ def get_version(rel_path):
             return line.split(delim)[1]
     raise RuntimeError("Unable to find version string.")
 
+
+requirements = read('requirements.txt').splitlines()
+
 setup(
     name='trapster',
     version=get_version("trapster/__init__.py"),
-    install_requires=[
-        "anyio>=3.6.2",
-        "async-timeout>=4.0.2",
-        "asyncssh>=2.13.1",
-        "certifi>=2023.5.7",
-        "cffi>=1.15.1",
-        "cryptography>=40.0.2",
-        "h11>=0.14.0",
-        "httpcore>=0.17.0",
-        "httpx>=0.24.0",
-        "idna>=3.4",
-        "netifaces>=0.11.0",
-        "nmcli>=1.2.0",
-        "pycparser>=2.21",
-        "redis>=4.5.5",
-        "sniffio>=1.3.0",
-        "typing_extensions>=4.5.0",
-        "packaging",
-        "securesystemslib",
-        "pyasn1"
-    ],
+    install_requires=requirements,
     url='https://trapster.cloud/',
     author='0xBallpoint',
     author_email='contact@ballpoint.fr',
@@ -64,7 +47,7 @@ setup(
         "Programming Language :: Python :: 3.11",
         "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)"
     ],
-    keywords=["trapster", "ballpoint", "deceptive", "security", "network"],
+    keywords=["trapster", "honeypot", "ballpoint", "deceptive", "security", "network"],
     entry_points={
         'console_scripts': [
              'trapster=trapster.trapster:main',

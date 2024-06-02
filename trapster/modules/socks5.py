@@ -1,8 +1,5 @@
 from .base import BaseProtocol, BaseHoneypot
 
-import time
-import struct
-
 class Socks5Protocol(BaseProtocol):
     '''based on RFC 1928 (https://datatracker.ietf.org/doc/html/rfc1928) '''
 

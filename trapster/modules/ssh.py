@@ -1,13 +1,10 @@
 from .base import BaseProtocol, BaseHoneypot
 
-from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 
 import asyncio, asyncssh, os, datetime
-
-from typing import Optional
-from asyncssh.public_key import SSHKeyPair
 
 async def handle_client(process: asyncssh.SSHServerProcess) -> None:
     """

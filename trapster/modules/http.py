@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from .base import BaseProtocol, BaseHoneypot
-import logging
 
 # Based on https://github.com/thomwiggers/httpserver
 # __author__ = 'Thom Wiggers, Luuk Scholten'
