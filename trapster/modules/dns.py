@@ -35,7 +35,7 @@ class DnsUdpProtocol(BaseProtocol):
     }
 
     def __init__(self, config=None):
-        self.protocol_name = "dns_udp"
+        self.protocol_name = "dns"
 
         if config:
             self.config = config
@@ -76,7 +76,7 @@ class DnsTcpProtocol(BaseProtocol):
     For now it indicates that DNS is enable to attackers scanning only TCP
     """
     def __init__(self):
-        self.protocol_name = "dns_tcp"  
+        self.protocol_name = "dns"  
 
 class DnsHoneypot(BaseHoneypot):
 
