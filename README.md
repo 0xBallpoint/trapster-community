@@ -39,6 +39,13 @@ python setup.py install
 ```
 
 ## Usage
+
+### Configuration
+Trapster uses a configuration file located at `data/trapster.conf`. Ensure the configuration file is correctly set up before running the daemon.
+You can add as many services as you want, even mutliple services of the same type.
+
+You should also change the `interface` name, Trapster uses that to discover the IP address it should bind to. On linux, you can type `ifconfig` or `ip a`.
+
 ### Running the Daemon
 
 After installation, to start the Trapster daemon, simply use the trapster command inside your folder:
@@ -49,11 +56,6 @@ In development mode, you can use the main script:
 ```bash
 python3 main.py
 ```
-
-## Configuration
-
-Trapster uses a configuration file located at `data/trapster.conf`. Ensure the configuration file is correctly set up before running the daemon.
-You can add as many services as you want.
 
 ## Contributing
 
