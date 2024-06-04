@@ -46,6 +46,8 @@ class TrapsterManager:
                     server = RdpHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'telnet':
                     server = TelnetHoneypot(service_config, self.logger, bindaddr=ip)
+                elif service_type == 'snmp':
+                    server = SnmpHoneypot(service_config, self.logger, bindaddr=ip)
                 else:
                     print(f"[-] Unreconized service {service_type}")
                     break

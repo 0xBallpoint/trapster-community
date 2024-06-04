@@ -8,3 +8,4 @@ from .dns import DnsHoneypot
 from .rdp import RdpHoneypot
 from .postgres import PostgresHoneypot
 from .ldap import LdapHoneypot
+from .snmp import SnmpHoneypot
