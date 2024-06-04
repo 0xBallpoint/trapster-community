@@ -1,5 +1,5 @@
 import asyncio, json
-import netifaces, os
+import psutil, os
 
 from trapster.modules import *
 from trapster.logger import *
@@ -10,9 +10,11 @@ class TrapsterManager:
         self.config = config
 
     def get_ip(self, config_interface):
-        for interface in netifaces.interfaces():
+        for interface, addrs in psutil.net_if_addrs().items():
             if interface == config_interface:
-                return netifaces.ifaddresses(interface)[netifaces.AF_INET][0]['addr']
+                for addr in addrs:
+                    if addr.family == psutil.AF_INET:
+                        return addr.address
         
         print(f"Interface {config_interface} does not exist")
         return
