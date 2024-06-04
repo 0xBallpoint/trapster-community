@@ -1,5 +1,6 @@
-import asyncio, json
-import psutil, socket, os
+import asyncio
+import psutil
+import argparse, json, socket, os
 
 from trapster.modules import *
 from trapster.logger import *
@@ -58,17 +59,41 @@ class TrapsterManager:
         while True:
             await asyncio.sleep(10)
 
-def main():
-    print('[+] Starting trapster')
+def list_interfaces():
+    interfaces = psutil.net_if_addrs()
+    for interface, addrs in interfaces.items():
+        for addr in addrs:
+            if addr.family == socket.AF_INET:
+                print(f"{addr.address}\t({interface})")
 
-    if os.path.exists('data/trapster.conf'):
-        print('[+] using config file at : data/trapster.conf')
-        with open('data/trapster.conf', 'r') as f:
+def main():
+    parser = argparse.ArgumentParser(description="Trapster Community honeypot.")
+    
+    parser.add_argument('-i', '--interfaces', action='store_true', help='Show list of interfaces and their corresponding IPs.')
+    parser.add_argument('-c', '--config', type=str, help='Specify the config file to use.')
+    parser.add_argument('-s', '--show-config', action='store_true', help='Show the config file currently in use.')
+    
+    args = parser.parse_args()
+    
+    config_file = args.config if args.config else "data/trapster.conf"
+
+    if args.interfaces:
+        list_interfaces()
+        return
+    
+    if os.path.exists(config_file):
+        print(f"[+] using config file at : {config_file}")
+        with open(config_file, 'r') as f:
             config = json.load(f)
     else:
-        print('[-] config file not found (data/trapster.conf)')
+        print(f'[-] config file {config_file} not found')
         return
 
+    if args.show_config:
+        print(config)
+        return
+
+    print('[+] Starting Trapster Community')
     manager = TrapsterManager(config)
 
     logger = JsonLogger(config['id'])
