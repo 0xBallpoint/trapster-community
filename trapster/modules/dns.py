@@ -72,7 +72,7 @@ class DnsUdpProtocol(BaseProtocol):
         src_ip, src_port = addr
         dst_ip, dst_port = self.transport.get_extra_info('sockname')
         udp_log = UdpTransporter(dst_ip, dst_port, src_ip, src_port)
-        self.logger.log(self.protocol_name + "." + self.logger.EXTRA, self.transport, extra={"src_ip": src_ip, "src_port": src_port, "query": decoded_packet})
+        self.logger.log(self.protocol_name + "." + self.logger.EXTRA, udp_log, extra={"query": decoded_packet})
 
 
         transport, protocol = await self.loop.create_datagram_endpoint(
