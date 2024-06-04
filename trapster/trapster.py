@@ -1,5 +1,5 @@
 import asyncio, json
-import psutil, os
+import psutil, socket, os
 
 from trapster.modules import *
 from trapster.logger import *
@@ -13,7 +13,7 @@ class TrapsterManager:
         for interface, addrs in psutil.net_if_addrs().items():
             if interface == config_interface:
                 for addr in addrs:
-                    if addr.family == psutil.AF_INET:
+                    if addr.family == socket.AF_INET:
                         return addr.address
         
         print(f"Interface {config_interface} does not exist")
