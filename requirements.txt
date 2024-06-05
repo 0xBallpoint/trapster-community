@@ -4,3 +4,4 @@ pyasn1>=0.4.8
 redis>=5.0.4
 cryptography>=38.0.4
 asyncssh>=2.14.2
+scapy>=2.4.5

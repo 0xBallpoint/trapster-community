@@ -9,6 +9,22 @@ class ProtocolError(Exception):
 class UnsupportedVersion(Exception):
     pass
 
+class UdpTransporter():
+    def __init__(self, dst_ip = "0.0.0.0", dst_port=1, src_ip="0.0.0.0", src_port=1):
+        self.dst_ip = dst_ip
+        self.dst_port = dst_port
+        self.src_ip = src_ip
+        self.src_port = src_port
+
+    def get_extra_info(self, name, default=None):
+        #https://docs.python.org/3/library/asyncio-protocol.html
+        if name == 'sockname':
+            return self.dst_ip, self.dst_port
+        elif name == 'peername':
+            return self.src_ip, self.src_port
+        else:
+            return None
+
 class BaseProtocol(asyncio.Protocol):
     """common class to all protocol handler"""
     def __init__(self):

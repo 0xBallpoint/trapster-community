@@ -1,24 +1,7 @@
-from .base import BaseProtocol, BaseHoneypot
+from .base import BaseProtocol, BaseHoneypot, UdpTransporter
 from .libs import dns
 
 import asyncio
-
-#TODO
-#TCP part handling
-class UdpTransporter():
-    def __init__(self, dst_ip = "0.0.0.0", dst_port=1, src_ip="0.0.0.0", src_port=1):
-        self.dst_ip = dst_ip
-        self.dst_port = dst_port
-        self.src_ip = src_ip
-        self.src_port = src_port
-    def get_extra_info(self, name, default=None):
-        #https://docs.python.org/3/library/asyncio-protocol.html
-        if name == 'sockname':
-            return self.dst_ip, self.dst_port
-        elif name == 'peername':
-            return self.src_ip, self.src_port
-        else:
-            return None
         
 class EchoClientProtocol(asyncio.DatagramProtocol):
     def __init__(self, message, on_con_lost):
@@ -71,8 +54,8 @@ class DnsUdpProtocol(BaseProtocol):
         # need to specify src_ip and src_port because self.transport endpoint is not connected
         src_ip, src_port = addr
         dst_ip, dst_port = self.transport.get_extra_info('sockname')
-        udp_log = UdpTransporter(dst_ip, dst_port, src_ip, src_port)
-        self.logger.log(self.protocol_name + "." + self.logger.EXTRA, udp_log, extra={"query": decoded_packet})
+        transport_udp = UdpTransporter(dst_ip, dst_port, src_ip, src_port)
+        self.logger.log(self.protocol_name + "." + self.logger.EXTRA, transport_udp, extra={"query": decoded_packet})
 
 
         transport, protocol = await self.loop.create_datagram_endpoint(
@@ -91,6 +74,8 @@ class DnsTcpProtocol(BaseProtocol):
     """
     For now it indicates that DNS is enable to attackers scanning only TCP
     """
+    #TODO
+
     def __init__(self):
         self.protocol_name = "dns"  
 
@@ -110,11 +95,12 @@ class DnsHoneypot(BaseHoneypot):
     async def _start_server(self):
         loop = asyncio.get_running_loop()
 
+        # Create UDP server
         transport, protocol = await loop.create_datagram_endpoint(lambda: self.handler_udp(), 
                                     local_addr=(self.bindaddr, self.port))
         
+        # Create TCP server
         self.server = await loop.create_server(self.handler, host=self.bindaddr, port=self.port)
-
         try:
             await self.server.serve_forever()
         except asyncio.CancelledError:
