@@ -30,6 +30,8 @@ class TrapsterManager:
                     server = FtpHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'http':
                     server = HttpHoneypot(service_config, self.logger, bindaddr=ip)
+                elif service_type == 'https':
+                    server = HttpsHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'ssh':
                     server = SshHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'dns':            
