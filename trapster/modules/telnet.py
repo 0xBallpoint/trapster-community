@@ -101,10 +101,6 @@ class TelnetProtocol(BaseProtocol):
         self.transport.write(b"\r\nLogin incorrect.\r\n")
         self.transport.close()
 
-    def unrecognized_data(self, data):
-        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
-        self.transport.close()
-
 class TelnetHoneypot(BaseHoneypot):
 
     def __init__(self, config, logger, bindaddr="0.0.0.0"):

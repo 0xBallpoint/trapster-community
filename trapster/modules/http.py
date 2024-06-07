@@ -222,8 +222,11 @@ class HttpProtocol(BaseProtocol):
             extra['basic'] = True
 
         # Log request
-        self.logger.log(self.protocol_name + "." + self.logger.EXTRA, self.transport, extra=extra)
-
+        if extra['basic'] == True or extra['method'] == 'POST':
+            self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra=extra)
+        else:
+            self.logger.log(self.protocol_name + "." + self.logger.QUERY, self.transport, extra=extra)
+ 
         return request
 
     def _get_request_uri(self, request):
