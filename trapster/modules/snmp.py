@@ -30,7 +30,7 @@ class SnmpUdpProtocol(BaseProtocol):
             src_ip, src_port = addr
             dst_ip, dst_port = self.transport.get_extra_info('sockname')
             transport_udp = UdpTransporter(dst_ip, dst_port, src_ip, src_port)
-            self.logger.log(self.protocol_name + "." + self.logger.EXTRA, transport_udp, extra={"community":community, "version":version, "varbind":oids})
+            self.logger.log(self.protocol_name + "." + self.logger.QUERY, transport_udp, extra={"community":community, "version":version, "varbind":oids})
 
     def parse_snmp(self, data):
         try:

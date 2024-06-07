@@ -5,7 +5,7 @@ class BaseLogger(object):
     CONNECTION  = "connection"
     DATA        = "data"
     LOGIN       = "login"
-    EXTRA       = "extra"
+    QUERY       = "query"
     
     def __init__(self, node_id):
         self.node_id = node_id

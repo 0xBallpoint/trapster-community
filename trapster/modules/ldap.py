@@ -106,7 +106,7 @@ class LdapProtocol(BaseProtocol):
         scope = str(protocolOp['searchRequest']['scope'])
         msg = ldapasn1.SearchResultDone()
 
-        self.logger.log(self.protocol_name + "." + self.logger.EXTRA, self.transport, extra={'scope': scope})
+        self.logger.log(self.protocol_name + "." + self.logger.QUERY, self.transport, extra={'scope': scope})
 
         if scope == 'baseObject':
             # return informations about server

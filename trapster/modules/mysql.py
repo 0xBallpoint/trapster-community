@@ -76,10 +76,6 @@ class MysqlProtocol(BaseProtocol):
             )
         )
 
-    def unrecognized_data(self, data):
-        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
-        self.transport.close()
-
     def initial_handshake(self):
         # https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html
         

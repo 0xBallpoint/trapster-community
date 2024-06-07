@@ -42,6 +42,10 @@ class BaseProtocol(asyncio.Protocol):
     def connection_lost(self, exc: Optional[Exception]) -> None:
         self.transport.close()
 
+    def unrecognized_data(self, data):
+        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
+        self.transport.close()
+
 class BaseHoneypot(object):
     """common class to all trapster instance"""
 
