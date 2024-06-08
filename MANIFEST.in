@@ -1,6 +1,5 @@
 recursive-include trapster/modules/resources *
 include trapster/data/trapster.conf
-include requirements.txt
 
 recursive-exclude trapster/test *
 recursive-exclude .github *

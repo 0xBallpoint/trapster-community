@@ -18,13 +18,18 @@ def get_version(rel_path):
             return line.split(delim)[1]
     raise RuntimeError("Unable to find version string.")
 
-
-requirements = read('requirements.txt').splitlines()
-
 setup(
     name='trapster',
     version=get_version("trapster/__init__.py"),
-    install_requires=requirements,
+    install_requires=[
+        "httpx>=0.27.0",
+        "psutil>=5.9.8",
+        "pyasn1>=0.4.8",
+        "redis>=5.0.4",
+        "cryptography>=38.0.4",
+        "asyncssh>=2.14.2",
+        "scapy>=2.5.0"
+    ],
     url='https://trapster.cloud/',
     author='0xBallpoint',
     author_email='contact@ballpoint.fr',
