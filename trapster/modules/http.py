@@ -288,9 +288,7 @@ class HttpProtocol(BaseProtocol):
 
         # Check requested filename
         script_dir = os.path.dirname(os.path.abspath(__file__))
-
         folder = script_dir + "/resources/httpskins/" + self.config['skin']
-        
         filename = os.path.join(folder, unquote(location))
 
         if os.path.isdir(filename):

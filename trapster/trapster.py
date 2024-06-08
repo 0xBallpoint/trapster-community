@@ -2,8 +2,9 @@ import asyncio
 import psutil
 import argparse, json, socket, os
 
-from trapster.modules import *
-from trapster.logger import *
+from . import __version__
+from .modules import *
+from .logger import *
 
 class TrapsterManager:
     def __init__(self, config):
@@ -74,17 +75,25 @@ def main():
     parser.add_argument('-i', '--interfaces', action='store_true', help='Show list of interfaces and their corresponding IPs.')
     parser.add_argument('-c', '--config', type=str, help='Specify the config file to use.')
     parser.add_argument('-s', '--show-config', action='store_true', help='Show the config file currently in use.')
-    
+    parser.add_argument('-v', '--version', action='store_true', help='Print version')
     args = parser.parse_args()
     
-    config_file = args.config if args.config else "data/trapster.conf"
+    if args.version:
+        print(__version__)
+        return
 
     if args.interfaces:
         list_interfaces()
         return
     
-    if os.path.exists(config_file):
+    if args.config:
         print(f"[+] using config file at : {config_file}")
+        config_file = args.config
+    else:
+        print(f"[+] using default config file")
+        config_file = os.path.dirname(__file__)+"/data/trapster.conf"
+    
+    if os.path.exists(config_file):
         with open(config_file, 'r') as f:
             config = json.load(f)
     else:
