@@ -126,7 +126,7 @@ class SshHoneypot(BaseHoneypot):
     async def _start_server(self):
         try:
             self.server = await asyncssh.create_server(SshProtocol, self.bindaddr, self.port,
-                                 server_host_keys=['data/ssh/ssh_host_key'],
+                                 server_host_keys=[os.path.dirname(__file__)+"/../data/ssh/ssh_host_key"],
                                  process_factory=handle_client
                                  )
             await self.server.serve_forever()
@@ -158,13 +158,13 @@ class SshHoneypot(BaseHoneypot):
             format=serialization.PublicFormat.OpenSSH
         )
 
-        if not os.path.exists('data/ssh'):
-            os.makedirs('data/ssh')
+        if not os.path.exists(os.path.dirname(__file__)+"/../data/ssh"):
+            os.makedirs(os.path.dirname(__file__)+"/../data/ssh")
 
         # Save the private and public keys in OpenSSH format
-        with open('data/ssh/ssh_host_key', 'w+') as private:
+        with open(os.path.dirname(__file__)+"/../data/ssh/ssh_host_key", 'w+') as private:
             private.write(private_key_openssh.decode('utf-8'))
 
-        with open('data/ssh/ssh_host_key.pub', 'w+') as public:
+        with open(os.path.dirname(__file__)+"/../data/ssh/ssh_host_key.pub", 'w+') as public:
             public.write(public_key_openssh.decode('utf-8'))
     

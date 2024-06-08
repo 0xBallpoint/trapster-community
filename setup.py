@@ -31,6 +31,7 @@ setup(
     description='Trapster Daemon',
     long_description=read('README.md'),
     long_description_content_type='text/markdown',
+    license="AGPL3",
     packages=find_packages(include=['trapster', 'trapster.*', 'trapsterd']),
     include_package_data=True,
     platforms=['linux'],
