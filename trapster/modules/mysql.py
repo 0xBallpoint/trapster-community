@@ -14,7 +14,7 @@ class MysqlProtocol(BaseProtocol):
     
 
     config = {
-        "server_version": "5.6.4-m7-log",
+        "version": "5.6.4-m7-log",
         "auth_plugin": "mysql_native_password",
     }
 
@@ -80,7 +80,7 @@ class MysqlProtocol(BaseProtocol):
         # https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html
         
         protocol_version = self.protocol_version
-        server_version = (self.config['server_version'] + '\x00').encode()
+        server_version = (self.config['version'] + '\x00').encode()
         connection_id = os.urandom(4) # b'\x56\x0a\x00\x00'
         auth_plugin_data_part_1 = os.urandom(8)
         filler_1 = b'\x00'

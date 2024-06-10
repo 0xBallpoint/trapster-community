@@ -15,7 +15,7 @@ class VncProtocol(BaseProtocol):
     }
     
     config = {
-        "server_version": "RFB_38"
+        "version": "RFB_38"
     }
 
     def __init__(self, config=None):
@@ -29,14 +29,14 @@ class VncProtocol(BaseProtocol):
         
         self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
         
-        self.transport.write(self.versions[self.config['server_version']])
+        self.transport.write(self.versions[self.config['version']])
         self.state = 'wait_pversion'
         
     def data_received(self, data):
         self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
 
         if self.state == 'wait_pversion':
-            if data == self.versions[self.config['server_version']]:
+            if data == self.versions[self.config['version']]:
                 # sending security types
                 self.transport.write(binascii.unhexlify('020217'))
                 self.state = 2
