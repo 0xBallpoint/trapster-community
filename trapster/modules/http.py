@@ -9,13 +9,12 @@ from .base import BaseProtocol, BaseHoneypot
 
 import asyncio
 import hashlib
-import logging
 import mimetypes
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from http.client import responses
-from urllib.parse import unquote
+from pathlib import Path
 
 
 class InvalidRequestError(Exception):
@@ -24,7 +23,7 @@ class InvalidRequestError(Exception):
     This exception can be transformed to a http response.
     """
 
-    def __init__(self, code, *args, **kwargs):
+    def __init__(self, code, version="HTTP/1.1", body=None, headers=None, *args, **kwargs):
         """Configures a new InvalidRequestError
 
         Arguments:
@@ -32,16 +31,19 @@ class InvalidRequestError(Exception):
         """
         super(InvalidRequestError, self).__init__(*args, **kwargs)
         self.code = code
-
+        self.version = version
+        self.body = body
+        self.headers = headers if headers is not None else {
+            "Content-Type": "text/html; charset=utf-8"
+        }
 
     def get_http_response(self):
         """Get this exception as an HTTP response suitable for output"""
         return HttpProtocol()._get_response(
+            version=self.version,
             code=self.code,
-            body=str(self),
-            headers={
-                'Content-Type': 'text/plain'
-            }
+            body = self.body,
+            headers = self.headers
         )
 
 class HttpProtocol(BaseProtocol):
@@ -157,7 +159,7 @@ class HttpProtocol(BaseProtocol):
         if 'body' in response and 'Content-Length' not in response['headers']:
             response['headers']['Content-Length'] = len(response['body'])
 
-        response['headers']['Date'] = datetime.utcnow().strftime(
+        response['headers']['Date'] = datetime.now(timezone.utc).strftime(
             "%a, %d %b %Y %H:%M:%S +0000")
 
         for (header, content) in response['headers'].items():
@@ -184,12 +186,12 @@ class HttpProtocol(BaseProtocol):
         if not (2 <= len(method_line) <= 3):
             # Got an invalid http header
             self.keepalive = False  # We don't trust you
-            raise InvalidRequestError(400, 'Bad request')
+            raise InvalidRequestError(400, body='Bad request')
         # HTTP 0.9 isn't supported.
         if len(method_line) == 2:
             # Got a HTTP/0.9 request
             self.keepalive = False  # HTTP/0.9 won't support persistence
-            raise InvalidRequestError(505, "This server only supports HTTP/1.0"
+            raise InvalidRequestError(505, body="This server only supports HTTP/1.0"
                                            "and HTTP/1.1")
         else:
             request['version'] = method_line[2]
@@ -257,10 +259,9 @@ class HttpProtocol(BaseProtocol):
 
         # Check if we're getting a sane request
         if request.get('method') not in ('GET', 'POST', 'HEAD'):
-            raise InvalidRequestError(501, 'Method not implemented')
+            raise InvalidRequestError(501, version=request['version'], body='Method not implemented')
         if request.get('version') not in ('HTTP/1.0', 'HTTP/1.1'):
-            raise InvalidRequestError(
-                505, 'Version not supported. Supported versions are: {}, {}'
+            raise InvalidRequestError(505, version=request['version'], body='Version not supported. Supported versions are: {}, {}'
                 .format('HTTP/1.0', 'HTTP/1.1'))
 
         host, location = self._get_request_uri(request)
@@ -269,47 +270,41 @@ class HttpProtocol(BaseProtocol):
         if host is None:
             host = request.get('Host')
 
+
+        if self.config.get('directory'):
+            script_dir = Path(self.config.get('directory'))
+        else:
+            script_dir = Path(__file__).resolve().parent / "resources/httpskins"
+        
+        folder = script_dir / self.config['skin']
+
+        # Ensure the resolved path is within the base directory
+        if not script_dir in folder.resolve().parents:
+            raise ValueError("Invalid file path")
+        
         # Send 401 Unauthorized if basic_auth configuration
         if self.config['basic_auth'] == True:
-            response = self._get_response(version=request['version'], code=401)
-            response["headers"] = {
-                'WWW-Authenticate': 'Basic realm="Unauthorized"',
-                "Content-Type": "text/html; charset=utf-8"
-                }
-            response["body"] = """<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
-<html><head>
-<title>401 Authorization Required</title>
-</head><body>
-<center><h1>401 Authorization Required</h1></center>
-<hr><center>Apache 2.4.6</center>
-</body></html>
-"""
-            return self._write_response(response)
+            with open(folder / "401.html", 'rb') as fp:
+                raise InvalidRequestError(401, version=request['version'],
+                    headers={
+                        'WWW-Authenticate': 'Basic realm="Unauthorized"',
+                        "Content-Type": "text/html; charset=utf-8"
+                    },
+                    body=fp.read())
 
         # Check requested filename
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        folder = script_dir + "/resources/httpskins/" + self.config['skin']
-        filename = os.path.join(folder, unquote(location))
+        filename = folder / location
+
+        if str(folder) not in str(filename):
+            with open(folder / "404.html", 'rb') as fp:
+                raise InvalidRequestError(404, version=request['version'], body=fp.read())
 
         if os.path.isdir(filename):
-            filename = os.path.join(filename, 'index.html')
+            filename = filename / 'index.html'
 
         if not os.path.isfile(filename):
-            response = self._get_response(version=request['version'], code=404)
-            response["headers"] = {
-                "Content-Type": "text/html; charset=utf-8"
-                }
-            response["body"] = """<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
-<html><head>
-<title>404 Not Found</title>
-</head><body>
-<h1>Not Found</h1>
-<p>The requested URL was not found on this server.</p>
-<hr>
-<address>Apache/2.4.6</address>
-</body></html>
-"""
-            return self._write_response(response)
+            with open(folder / "404.html", 'rb') as fp:
+                raise InvalidRequestError(404, version=request['version'], body=fp.read())
 
         # Start response with version
         response = self._get_response(version=request['version'])
