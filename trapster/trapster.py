@@ -87,11 +87,11 @@ def main():
         return
     
     if args.config:
-        print(f"[+] using config file at : {config_file}")
         config_file = args.config
+        print(f"[+] using config file at : {config_file}")
     else:
-        print(f"[+] using default config file")
         config_file = os.path.dirname(__file__)+"/data/trapster.conf"
+        print(f"[+] using default config file")
     
     if os.path.exists(config_file):
         with open(config_file, 'r') as f:
