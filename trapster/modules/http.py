@@ -217,7 +217,7 @@ class HttpProtocol(BaseProtocol):
 
         extra = {"method":request.get('method'), "basic": False, "version" : request.get('version'), "target":request.get('target'), "headers": request.get('headers')}
         if post_data != b'':
-            extra["data"] = post_data
+            extra["data"] = post_data.decode()
 
         # If Authorization Header : basic auth is True
         if request["headers"].get("Authorization"):
