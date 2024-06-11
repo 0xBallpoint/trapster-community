@@ -259,9 +259,9 @@ class HttpProtocol(BaseProtocol):
 
         # Check if we're getting a sane request
         if request.get('method') not in ('GET', 'POST', 'HEAD'):
-            raise InvalidRequestError(501, version=request['version'], body='Method not implemented')
+            raise InvalidRequestError(501, version=request.get('version'), body='Method not implemented')
         if request.get('version') not in ('HTTP/1.0', 'HTTP/1.1'):
-            raise InvalidRequestError(505, version=request['version'], body='Version not supported. Supported versions are: {}, {}'
+            raise InvalidRequestError(505, version=request.get('version'), body='Version not supported. Supported versions are: {}, {}'
                 .format('HTTP/1.0', 'HTTP/1.1'))
 
         host, location = self._get_request_uri(request)
@@ -285,7 +285,7 @@ class HttpProtocol(BaseProtocol):
         # Send 401 Unauthorized if basic_auth configuration
         if self.config['basic_auth'] == True:
             with open(folder / "401.html", 'rb') as fp:
-                raise InvalidRequestError(401, version=request['version'],
+                raise InvalidRequestError(401, version=request.get('version'),
                     headers={
                         'WWW-Authenticate': 'Basic realm="Unauthorized"',
                         "Content-Type": "text/html; charset=utf-8"
@@ -304,10 +304,10 @@ class HttpProtocol(BaseProtocol):
 
         if not os.path.isfile(filename):
             with open(folder / "404.html", 'rb') as fp:
-                raise InvalidRequestError(404, version=request['version'], body=fp.read())
+                raise InvalidRequestError(404, version=request.get('version'), body=fp.read())
 
         # Start response with version
-        response = self._get_response(version=request['version'])
+        response = self._get_response(version=request.get('version'))
 
         # timeout negotiation
         match = re.match(r'timeout=(\d+)', request.get('Keep-Alive', ''))
