@@ -2,7 +2,7 @@ from .base import BaseProtocol, BaseHoneypot
 from .libs import ldapasn1
 from pyasn1.codec.ber import decoder
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class LdapProtocol(BaseProtocol):
@@ -106,7 +106,10 @@ class LdapProtocol(BaseProtocol):
         scope = str(protocolOp['searchRequest']['scope'])
         msg = ldapasn1.SearchResultDone()
 
-        self.logger.log(self.protocol_name + "." + self.logger.QUERY, self.transport, extra={'scope': scope})
+        self.logger.log(self.protocol_name + "." + self.logger.QUERY, self.transport, extra={
+            'scope': scope, 
+            'baseObject': protocolOp['searchRequest'].get('baseObject')
+        })
 
         if scope == 'baseObject':
             # return informations about server
@@ -128,7 +131,6 @@ class LdapProtocol(BaseProtocol):
         return msg
 
     def searchresentry_response(self, attributes_search_values):
-        
         # default attribute list on Windows Server
         attributes_values = {
             'forestFunctionality': '2', # DS_BEHAVIOR_WIN2003
@@ -157,7 +159,7 @@ class LdapProtocol(BaseProtocol):
             'highestCommittedUSN': '12352',
             'dsServiceName': 'CN=NTDS Settings,CN=SERVER-01$name01,CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC=MOP,DC=INTRA',
             'dnsHostName': 'SERVER-01.MOP.INTRA',
-            'currentTime': datetime.utcnow().strftime('%Y%m%d%H%M%S.0Z'),
+            'currentTime': datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S.0Z'),
             'configurationNamingContext': 'CN=Configuration,DC=MOP,DC=INTRA'
         }
         
@@ -203,8 +205,12 @@ class LdapProtocol(BaseProtocol):
         return msg
 
     def send_response(self, response):
-        resp = ldapasn1.encoder.encode(response)
-        self.transport.write(resp)
+        try:
+            resp = ldapasn1.encoder.encode(response)
+            self.transport.write(resp)
+        except:
+            self.transport.close()
+        
 
 class LdapHoneypot(BaseHoneypot):
     """common class to all trapster instance"""
