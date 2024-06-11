@@ -57,6 +57,14 @@ In development mode, you can use the main script:
 python3 main.py
 ```
 
+## Log format
+
+Each module can generates up to four types of logs: `connection`, `data`, `login`, and `query`.
+* `connection`: Indicates that a connection has been made to the module.
+* `data`: Represents raw data that has been sent, logged in HEX format. This data is unprocessed.
+* `login`: Captures login attempts to the module. The data field is in JSON format and contains processed information.
+* `query`: Logs data that has been processed and does not correspond to an authentication attempt. The data field is in JSON format and contains processed information.
+
 ## Contributing
 
 Contributions are welcome! Please follow these steps:
