@@ -19,19 +19,20 @@ class HttpsProtocol(HttpProtocol):
 class HttpsHoneypot(BaseHoneypot):
     """common class to all trapster instance"""
 
-    def __init__(self, config, logger, bindaddr="0.0.0.0", key_path="data/https/key.pem", certificate_path="data/https/certificate.pem"):
+    def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
         self.handler = lambda: HttpsProtocol(config=config)
         self.handler.logger = logger
         self.handler.config = config
-        self.COUNTRY_NAME=self.handler.config.get("COUNTRY_NAME", "FR")
-        self.STATE_OR_PROVINCE_NAME=self.handler.config.get("STATE_OR_PROVINCE_NAME", "Paris")
-        self.LOCALITY_NAME=self.handler.config.get("LOCALITY_NAME", "Paris")
-        self.ORGANIZATION_NAME=self.handler.config.get("ORGANIZATION_NAME", "Ballpoint")
-        self.COMMON_NAME=self.handler.config.get("COMMON_NAME", "www.ballpoint.fr")
+
+        self.COUNTRY_NAME = config.get("COUNTRY_NAME", "FR")
+        self.STATE_OR_PROVINCE_NAME = config.get("STATE_OR_PROVINCE_NAME", "Paris")
+        self.LOCALITY_NAME = config.get("LOCALITY_NAME", "Paris")
+        self.ORGANIZATION_NAME = config.get("ORGANIZATION_NAME", "organisatio")
+        self.COMMON_NAME = config.get("COMMON_NAME", "www.organization.org")
         
-        self.key_path = key_path
-        self.certificate_path = certificate_path
+        self.key_path = config.get("key_path", "data/https/key.pem")
+        self.certificate_path = config.get("certificate_path", "data/https/certificate.pem")
 
         self.generate_certificate()
     
@@ -51,8 +52,10 @@ class HttpsHoneypot(BaseHoneypot):
             raise
 
     def generate_key(self):
-        if not os.path.exists('data/https'):
-            os.makedirs('data/https')
+        path = self.key_path.rsplit('/', 1)[0]
+        if path != self.key_path:
+            if not os.path.exists(path):
+                os.makedirs(path)
         
         key = rsa.generate_private_key(
             public_exponent=65537,
@@ -69,18 +72,22 @@ class HttpsHoneypot(BaseHoneypot):
         return key
 
     def generate_certificate(self):
-
         if os.path.exists(self.certificate_path) and os.path.exists(self.key_path):
             return
+        print(self.key_path)
         
-        if not os.path.exists(self.key_path):
-            key = self.generate_key()
-        else:
+        try:
             with open(self.key_path, "rb") as key_file:
                 key = serialization.load_pem_private_key(
                 key_file.read(),
                 password=None,
                 )
+        except:
+            key = self.generate_key()
+
+        folder = self.certificate_path.rsplit('/', 1)[0]
+        if not os.path.exists(folder):
+            os.makedirs(folder)
 
         subject = issuer = x509.Name([
             x509.NameAttribute(NameOID.COUNTRY_NAME, self.COUNTRY_NAME),
