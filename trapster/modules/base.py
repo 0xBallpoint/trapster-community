@@ -70,7 +70,7 @@ class BaseHoneypot(object):
             self.server = await loop.create_server(self.handler, host=self.bindaddr, port=self.port)
             await self.server.serve_forever()
         except OSError as e:
-            if e.errno == 98:
+            if e.errno == self.port:
                 print(f"Port {self.port} already in use on {self.bindaddr}")
                 print(e)
         except asyncio.CancelledError:

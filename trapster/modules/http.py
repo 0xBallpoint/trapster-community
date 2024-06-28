@@ -68,11 +68,9 @@ class HttpProtocol(BaseProtocol):
         self._timeout_handle = None
 
     def connection_made(self, transport):
-
         """Called when the connection is made"""
         self.transport = transport
         # too verbose self.logger.log(self.logger.LOG_HTTP_CONNECTION_MADE, self.transport)
-
         self.transport = transport
         self.keepalive = True
 

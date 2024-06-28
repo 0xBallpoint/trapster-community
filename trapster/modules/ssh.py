@@ -131,7 +131,7 @@ class SshHoneypot(BaseHoneypot):
                                  )
             await self.server.serve_forever()
         except OSError as e:
-            if e.errno == 98:
+            if e.errno == self.port:
                 print("port ssh already in use")
                 print(e)
         except asyncio.CancelledError:

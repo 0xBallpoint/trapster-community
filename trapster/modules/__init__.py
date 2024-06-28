@@ -1,5 +1,6 @@
 from .vnc import VncHoneypot
 from .http import HttpHoneypot
+from .https import HttpsHoneypot
 from .ssh import SshHoneypot
 from .ftp import FtpHoneypot
 from .mysql import MysqlHoneypot
