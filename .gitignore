@@ -161,6 +161,4 @@ cython_debug/
 
 ###############
 ssh_host_key*
-
-#Https keys and certificates
-/data/https/
+*.pem

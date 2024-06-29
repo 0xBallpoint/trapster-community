@@ -98,8 +98,6 @@ class LdapProtocol(BaseProtocol):
             msg['diagnosticMessage'] = '8009030C: LdapErr: DSID-0C090569, comment: AcceptSecurityContext error, data 2030, v4f7c'
             pass
 
-
-        #import ipdb; ipdb.set_trace()
         return msg
 
     def searchrequest_response(self, protocolOp):
