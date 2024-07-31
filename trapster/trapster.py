@@ -18,7 +18,7 @@ class TrapsterManager:
                     if addr.family == socket.AF_INET:
                         return addr.address
         
-        print(f"Interface {config_interface} does not exist")
+        print(f"Interface {config_interface} does not exist, using 0.0.0.0")
         return
 
     async def start(self):
@@ -93,7 +93,7 @@ def main():
         print(f"[+] using config file at : {config_file}")
     else:
         config_file = os.path.dirname(__file__)+"/data/trapster.conf"
-        print(f"[+] using default config file")
+        print(f"[+] using default config file at: {config_file}")
     
     if os.path.exists(config_file):
         with open(config_file, 'r') as f:
@@ -106,7 +106,7 @@ def main():
         print(config)
         return
 
-    print('[+] Starting Trapster Community')
+    print('=== Starting Trapster Community ===')
     manager = TrapsterManager(config)
 
     logger = JsonLogger(config['id'])

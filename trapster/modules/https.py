@@ -28,11 +28,11 @@ class HttpsHoneypot(BaseHoneypot):
         self.handler.logger = logger
         self.handler.config = config
 
-        self.COUNTRY_NAME = config.get("country_name", "FR")
-        self.STATE_OR_PROVINCE_NAME = config.get("state_or_province_name", "Paris")
-        self.LOCALITY_NAME = config.get("locality_name", "Paris")
-        self.ORGANIZATION_NAME = config.get("organization_name", "organisatio")
-        self.COMMON_NAME = config.get("common_name", "www.organization.org")
+        self.COUNTRY_NAME = config.get("country_name", "US")
+        self.STATE_OR_PROVINCE_NAME = config.get("state_or_province_name", "New-York")
+        self.LOCALITY_NAME = config.get("locality_name", "New-York")
+        self.ORGANIZATION_NAME = config.get("organization_name", "Demo")
+        self.COMMON_NAME = config.get("common_name", "example.com")
         
         self.key_path = Path(config.get("key", "/etc/trapster/ssl/key.pem"))
         self.certificate_path = Path(config.get("certificate", "/etc/trapster/ssl/certificate.pem"))
@@ -55,46 +55,48 @@ class HttpsHoneypot(BaseHoneypot):
             raise
 
     def generate_certificate(self):
-        if self.certificate_path.exists() and self.key_path.exists():
-            return
-        else:
-            self.key_path.parent.mkdir(parents=True, exist_ok=True)
-            self.certificate_path.parent.mkdir(parents=True, exist_ok=True)
+        '''
+        Regenerate the certificate at each startup to ensure the configuration values are applied and reflected.
+        '''
+        #if self.certificate_path.exists() and self.key_path.exists():
+        #    return
+        #else:
+        self.key_path.parent.mkdir(parents=True, exist_ok=True)
+        self.certificate_path.parent.mkdir(parents=True, exist_ok=True)
 
-            key = rsa.generate_private_key(
-                    public_exponent=65537,
-                    key_size=2048,
-                )
-
-            with open(self.key_path, "wb") as f:
-                f.write(key.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm=serialization.NoEncryption()        
-            ))
-
-            subject = issuer = x509.Name([
-                x509.NameAttribute(NameOID.COUNTRY_NAME, self.COUNTRY_NAME),
-                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, self.STATE_OR_PROVINCE_NAME),
-                x509.NameAttribute(NameOID.LOCALITY_NAME, self.LOCALITY_NAME),
-                x509.NameAttribute(NameOID.ORGANIZATION_NAME, self.ORGANIZATION_NAME),
-                x509.NameAttribute(NameOID.COMMON_NAME, self.COMMON_NAME),
-            ])
-
-            alt_names = x509.SubjectAlternativeName([x509.DNSName("172.20.10.2"),
-                                                    x509.DNSName("127.0.0.1")
-            ])
-            certification = (
-                x509.CertificateBuilder()
-                .subject_name(subject)
-                .issuer_name(issuer)
-                .public_key(key.public_key())
-                .serial_number(x509.random_serial_number())
-                .not_valid_before(datetime.datetime.now())
-                .not_valid_after(datetime.datetime.now() + datetime.timedelta(days=90))
-                .add_extension(alt_names, False)
-                .sign(key, hashes.SHA256(), default_backend())
+        key = rsa.generate_private_key(
+                public_exponent=65537,
+                key_size=2048,
             )
 
-            with open(self.certificate_path, "wb") as f:
-                f.write(certification.public_bytes(serialization.Encoding.PEM))
+        with open(self.key_path, "wb") as f:
+            f.write(key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption()        
+        ))
+
+        subject = issuer = x509.Name([
+            x509.NameAttribute(NameOID.COUNTRY_NAME, self.COUNTRY_NAME),
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, self.STATE_OR_PROVINCE_NAME),
+            x509.NameAttribute(NameOID.LOCALITY_NAME, self.LOCALITY_NAME),
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, self.ORGANIZATION_NAME),
+            x509.NameAttribute(NameOID.COMMON_NAME, self.COMMON_NAME),
+        ])
+
+        alt_names = x509.SubjectAlternativeName([x509.DNSName('localhost'),])
+
+        certification = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.datetime.now())
+            .not_valid_after(datetime.datetime.now() + datetime.timedelta(days=90))
+            .add_extension(alt_names, False)
+            .sign(key, hashes.SHA256(), default_backend())
+        )
+
+        with open(self.certificate_path, "wb") as f:
+            f.write(certification.public_bytes(serialization.Encoding.PEM))
