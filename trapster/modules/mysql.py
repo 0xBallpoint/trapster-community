@@ -63,11 +63,11 @@ class MysqlProtocol(BaseProtocol):
             # converted to printable hex for loggin
             password = data[username_end + 2:password_end].hex()
         
-        extra_details = data[password_end:]
+        extra_details = data[password_end:].decode()
 
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={'username':username, 'password':password, 'details':extra_details})
 
-        local_ip, local_port = self.transport.get_extra_info('sockname')
+        local_ip, _ = self.transport.get_extra_info('sockname')
 
         self.transport.write(
             self.build_packet(
