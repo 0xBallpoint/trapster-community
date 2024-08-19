@@ -28,11 +28,11 @@ class HttpsHoneypot(BaseHoneypot):
         self.handler.logger = logger
         self.handler.config = config
 
-        self.COUNTRY_NAME = config.get("country_name", "US")
-        self.STATE_OR_PROVINCE_NAME = config.get("state_or_province_name", "New-York")
-        self.LOCALITY_NAME = config.get("locality_name", "New-York")
-        self.ORGANIZATION_NAME = config.get("organization_name", "Demo")
-        self.COMMON_NAME = config.get("common_name", "example.com")
+        self.COUNTRY_NAME = config.get("country_name") or None
+        self.STATE_OR_PROVINCE_NAME = config.get("state_or_province_name") or None
+        self.LOCALITY_NAME = config.get("locality_name") or None
+        self.ORGANIZATION_NAME = config.get("organization_name") or None
+        self.COMMON_NAME = config.get("common_name", "server.internal")
         
         self.key_path = Path(config.get("key", "/etc/trapster/ssl/key.pem"))
         self.certificate_path = Path(config.get("certificate", "/etc/trapster/ssl/certificate.pem"))
@@ -76,13 +76,14 @@ class HttpsHoneypot(BaseHoneypot):
             encryption_algorithm=serialization.NoEncryption()        
         ))
 
-        subject = issuer = x509.Name([
-            x509.NameAttribute(NameOID.COUNTRY_NAME, self.COUNTRY_NAME),
-            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, self.STATE_OR_PROVINCE_NAME),
-            x509.NameAttribute(NameOID.LOCALITY_NAME, self.LOCALITY_NAME),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, self.ORGANIZATION_NAME),
+        name_attributes = [
+            x509.NameAttribute(NameOID.COUNTRY_NAME, self.COUNTRY_NAME) if self.COUNTRY_NAME else None,
+            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, self.STATE_OR_PROVINCE_NAME) if self.STATE_OR_PROVINCE_NAME else None,
+            x509.NameAttribute(NameOID.LOCALITY_NAME, self.LOCALITY_NAME) if self.LOCALITY_NAME else None,
+            x509.NameAttribute(NameOID.ORGANIZATION_NAME, self.ORGANIZATION_NAME) if self.ORGANIZATION_NAME else None,
             x509.NameAttribute(NameOID.COMMON_NAME, self.COMMON_NAME),
-        ])
+        ]
+        subject = issuer = x509.Name(filter(None, name_attributes))
 
         alt_names = x509.SubjectAlternativeName([x509.DNSName('localhost'),])
 
