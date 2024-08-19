@@ -1,44 +1,76 @@
 import pytest
 import asyncio
-import aioftp
+import socket
+from unittest.mock import MagicMock
+
 from trapster.modules.ftp import FtpHoneypot
 from trapster.logger import JsonLogger
-import logging
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+from .base import BaseServerTest
+
+class FTPTest(BaseServerTest):
+    def connect_and_login(self, port, username="username", password="randompass"):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            # Connect to the FTP server
+            sock.connect((self.bindaddr, port))  
+
+            # Read initial response
+            response = sock.recv(1024).decode('utf-8')
+            self.assert_response(response, 220, f"{self.service_config['banner']}\r\n")
+
+            # Send USER command
+            sock.sendall(f'USER {username}\r\n'.encode())
+            response = sock.recv(1024).decode('utf-8')
+            self.assert_response(response, 331, f"User {username} OK. Password required\r\n")
+
+            # Send PASS command
+            sock.sendall(f'PASS {password}\r\n'.encode())
+            response = sock.recv(1024).decode('utf-8')
+            self.assert_response(response, 530, "Authentication Failed\r\n")
+
+    def assert_response(self, response, expected_code, expected_message):
+        assert response.startswith(f'{expected_code}'), f"Expected {expected_code} response, got {response[:3]}"
+        assert expected_message in response, f"Expected message '{expected_message}', got '{response.strip()}'"
+
+    def validate_logger_output(self):
+        """
+        Validates the logger output by checking the arguments passed to the mocked log method.
+        """
+        # Mock the return values of the log method
+        mock_return_value = {"type": "mocked_event", "extra": {}}
+        self.logger.log.return_value = mock_return_value
+
+        # After running the test, check that log was called the expected number of times
+        assert self.logger.log.call_count == 4, "Expected four log entries"
+
+        # check that extra contains the username/password
+        connection_args = self.logger.log.call_args_list[3]          
+        assert connection_args[1] == {'extra': {'password': 'randompass', 'username': 'username'}}, "Expected extra data with username/password"
+
+    async def run_test(self):
+        await asyncio.to_thread(self.connect_and_login, self.service_config['port'])
+        self.validate_logger_output()
 
 @pytest.mark.asyncio
-async def run_server():
+async def test_ftp_authentication_failed():
     service_config = {
         'port': 2121,
         'banner': "Microsoft FTP Service"
     }
-    server = FtpHoneypot(service_config, JsonLogger('trapster-1'), bindaddr='127.0.0.1')
-    
+
+     # Mock the logger
+    mock_logger = MagicMock(JsonLogger('trapster-1'))
+
+    # Initialize the FTP-specific test
+    ftp_test = FTPTest(FtpHoneypot, service_config, mock_logger)
+
     # Start the server
-    await server.start()
-    await asyncio.sleep(1)  # Give the server some time to start
+    await ftp_test.start_server()
 
-    yield server
-
-    # Stop the server after tests
-    await server.stop()
-
-@pytest.mark.asyncio
-async def test_ftp_connection():
-    run_server()
-    client = aioftp.Client()
-    while True:
-        asyncio.sleep(1)
     try:
-        await client.connect("127.0.0.1", 2121)
-        response = await client.get_passive()
-        welcome_message = response.decode()
-        assert welcome_message == '220 Microsoft FTP Service'
-    except Exception as e:
-        logger.error(f"Error during FTP connection test: {e}")
-        raise
+        # Run the FTP-specific test logic
+        await ftp_test.run_test()
     finally:
-        await client.quit()
+        # Stop the server
+        await ftp_test.stop_server()
+
