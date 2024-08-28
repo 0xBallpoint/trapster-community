@@ -59,6 +59,27 @@ class JsonLogger(BaseLogger):
         if event:
             print(event)
 
+class FileLogger(BaseLogger):
+    def __init__(self, node_id, logfile, mode = "w+"):
+        self.node_id = node_id
+        self.logfile = logfile
+        self.mode = mode
+        self.file = open(self.logfile, self.mode)
+
+    def log(self, logtype, transport, data='', extra={}):
+        event = self.parse_log(logtype, transport, data, extra)
+            
+        try:
+            json.dump(event, self.file)
+            self.file.write("\n")
+            self.file.flush()
+        except IOError as e:
+            print(f"An error occurred while writing to the log file: {e}")
+        
+    def __del__(self):
+        if self.file:
+            self.file.close()
+
 class RedisLogger(BaseLogger):
     def __init__(self, node_id, host="localhost", port=6379):
         self.node_id = node_id
