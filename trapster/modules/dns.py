@@ -105,3 +105,6 @@ class DnsHoneypot(BaseHoneypot):
             await self.server.serve_forever()
         except asyncio.CancelledError:
             raise
+        except Exception as e:
+            print(e)
+            return False

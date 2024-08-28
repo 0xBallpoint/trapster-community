@@ -130,12 +130,11 @@ class SshHoneypot(BaseHoneypot):
                                  process_factory=handle_client
                                  )
             await self.server.serve_forever()
-        except OSError as e:
-            if e.errno == self.port:
-                print("port ssh already in use")
-                print(e)
         except asyncio.CancelledError:
             raise
+        except Exception as e:
+            print(e)
+            return False
 
     def generate_keys(self):
         # Generate an RSA private key

@@ -35,15 +35,18 @@ class SnmpUdpProtocol(BaseProtocol):
     def parse_snmp(self, data):
         try:
             snmp_data = SNMP(data)
-            community = snmp_data.community.val.decode()
+            try:
+                community = snmp_data.community.val.decode()
+            except AttributeError:
+                community = snmp_data.community.val
             oids = " ".join([item.oid.val for item in snmp_data.PDU.varbindlist])
             version = snmp_data.version.val
 
         except Scapy_Exception:
             #TODO: Scapy does not support SNMPv3 by default, but a new class can be created to support it, like in PySNMP
-            version = "Unknown"
-            community = "Unknown"
-            oids = "Unknown"
+            version = "unknown"
+            community = "unknown"
+            oids = "unknown"
             
         return version, community, oids
 

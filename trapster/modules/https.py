@@ -47,12 +47,11 @@ class HttpsHoneypot(BaseHoneypot):
         try:
             self.server = await loop.create_server(self.handler, host=self.bindaddr, port=self.port, ssl=ssl_context)
             await self.server.serve_forever()
-        except OSError as e:
-            if e.errno == self.port:
-                print("port already in use")
-                print(e)
         except asyncio.CancelledError:
             raise
+        except Exception as e:
+            print(e)
+            return False
 
     def generate_certificate(self):
         '''
