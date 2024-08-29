@@ -164,8 +164,8 @@ class LdapProtocol(BaseProtocol):
             'domainFunctionality': self.functionality_level,
             'forestFunctionality': self.functionality_level,
             'domainControllerFunctionality': self.functionality_level,
-            'rootDomainNamingContext': f'DC={self.config['domain']},DC={self.config['tld']}',
-            'ldapServiceName': f'{self.config['domain']}.{self.config['tld']}:{self.config['server']}$@{self.config['domain'].upper()}.{self.config['tld'].upper()}',
+            'rootDomainNamingContext': f"DC={self.config['domain']},DC={self.config['tld']}",
+            'ldapServiceName': f"{self.config['domain']}.{self.config['tld']}:{self.config['server']}$@{self.config['domain'].upper()}.{self.config['tld'].upper()}",
             'isGlobalCatalogReady': 'TRUE',
             'supportedSASLMechanisms': [
                 'GSSAPI', 'GSS-SPNEGO', 'EXTERNAL', 'DIGEST-MD5'
@@ -182,23 +182,23 @@ class LdapProtocol(BaseProtocol):
             'supportedCapabilities' : [
                 '1.2.840.113556.1.4.800','1.2.840.113556.1.4.1670','1.2.840.113556.1.4.1791','1.2.840.113556.1.4.1935','1.2.840.113556.1.4.2080','1.2.840.113556.1.4.2237' 
             ],
-            'subschemaSubentry' : f'CN=Aggregate,CN=Schema,CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}',
-            'serverName' : f'CN={self.config['server']},CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}',
-            'schemaNamingContext' : f'CN=Schema,CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}',
+            'subschemaSubentry' : f"CN=Aggregate,CN=Schema,CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}",
+            'serverName' : f"CN={self.config['server']},CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}",
+            'schemaNamingContext' : f"CN=Schema,CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}",
             'namingContexts' : [
-                f'DC={self.config['domain']},DC={self.config['tld']}',
-                f'CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}',
-                f'CN=Schema,CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}',
-                f'DC=DomainDnsZones,DC={self.config['domain']},DC={self.config['tld']}',
-                f'DC=ForestDnsZones,DC={self.config['domain']},DC={self.config['tld']}',
+                f"DC={self.config['domain']},DC={self.config['tld']}",
+                f"CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}",
+                f"CN=Schema,CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}",
+                f"DC=DomainDnsZones,DC={self.config['domain']},DC={self.config['tld']}",
+                f"DC=ForestDnsZones,DC={self.config['domain']},DC={self.config['tld']}",
             ],
             'isSynchronized': 'TRUE',
             'highestCommittedUSN': '49175',
-            'dsServiceName': f'CN=NTDS Settings,CN={self.config['server']},CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}',
-            'dnsHostName': f'{self.config['server']}.{self.config['domain']}.{self.config['tld']}',
-            'defaultNamingContext': f'DC={self.config['domain']},DC={self.config['tld']}',
+            'dsServiceName': f"CN=NTDS Settings,CN={self.config['server']},CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}",
+            'dnsHostName': f"{self.config['server']}.{self.config['domain']}.{self.config['tld']}",
+            'defaultNamingContext': f"DC={self.config['domain']},DC={self.config['tld']}",
             'currentTime': datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S.0Z'),
-            'configurationNamingContext': f'CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}'
+            'configurationNamingContext': f"CN=Configuration,DC={self.config['domain']},DC={self.config['tld']}"
         }
   
         # Filter the dictionary based on search value
