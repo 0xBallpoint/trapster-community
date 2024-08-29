@@ -36,7 +36,7 @@ class SnmpUdpProtocol(BaseProtocol):
         try:
             snmp_data = SNMP(data)
             try:
-                community = snmp_data.community.val.decode()
+                community = snmp_data.community.val.decode(errors='backslashreplace')
             except AttributeError:
                 community = snmp_data.community.val
             oids = " ".join([item.oid.val for item in snmp_data.PDU.varbindlist])

@@ -52,7 +52,7 @@ class MysqlProtocol(BaseProtocol):
      
         max_size = int.from_bytes(data[0x08:0x0C], byteorder='little')
         username_end = data.index(b'\x00', 0x24, max_size - 0x24)
-        username = str(data[0x24:username_end], 'utf-8')
+        username = data[0x24:username_end].decode(errors='backslashreplace')
 
         password_len = data[username_end + 1]
         using_password = "YES" if password_len > 0 else "NO"
@@ -63,7 +63,7 @@ class MysqlProtocol(BaseProtocol):
             # converted to printable hex for loggin
             password = data[username_end + 2:password_end].hex()
         
-        extra_details = data[password_end:].decode()
+        extra_details = data[password_end:].decode(errors='backslashreplace')
 
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={'username':username, 'password':password, 'details':extra_details})
 

@@ -129,7 +129,7 @@ class LdapProtocol(BaseProtocol):
             attributes = protocolOp['searchRequest']['attributes']
             attributes_search_values = []
             for attr in attributes:
-                attributes_search_values.append(attr._value.decode())
+                attributes_search_values.append(attr._value.decode(errors='backslashreplace'))
 
             msg = self.searchresentry_response(attributes_search_values)
 

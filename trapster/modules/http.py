@@ -175,7 +175,8 @@ class HttpProtocol(BaseProtocol):
             request_strings = list(map(lambda x: x.decode(),
                                    data.split(b'\r\n')))
         except UnicodeDecodeError:
-            return request
+            self.keepalive = False  # We don't trust you
+            raise InvalidRequestError(400, body='Bad request')
 
         # Parse request method and HTTP version
         method_line = request_strings[0].split()
@@ -215,7 +216,7 @@ class HttpProtocol(BaseProtocol):
 
         extra = {"method":request.get('method'), "basic": False, "version" : request.get('version'), "target":request.get('target'), "headers": request.get('headers')}
         if post_data != b'':
-            extra["data"] = post_data.decode()
+            extra["data"] = post_data.decode(errors='backslashreplace')
 
         # If Authorization Header : basic auth is True
         if request["headers"].get("Authorization"):
