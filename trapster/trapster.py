@@ -2,8 +2,9 @@ import asyncio
 import psutil
 import argparse, json, socket, os
 
-from trapster.modules import *
-from trapster.logger import *
+from . import __version__
+from .modules import *
+from .logger import set_logger
 
 class TrapsterManager:
     def __init__(self, config):
@@ -15,17 +16,17 @@ class TrapsterManager:
             if interface == config_interface:
                 for addr in addrs:
                     if addr.family == socket.AF_INET:
+                        print(f"[+] Using IP: {addr.address}")
                         return addr.address
         
-        print(f"Interface {config_interface} does not exist")
+        print(f"[!] Interface {config_interface} does not exist, using 0.0.0.0")
         return
 
     async def start(self):
         ip = self.get_ip(self.config['interface'])
-
+        
         for service_type in self.config['services']:
             for service_config in self.config['services'][service_type]:
-
                 if service_type == 'ftp':
                     server = FtpHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'http':
@@ -76,17 +77,27 @@ def main():
     parser.add_argument('-i', '--interfaces', action='store_true', help='Show list of interfaces and their corresponding IPs.')
     parser.add_argument('-c', '--config', type=str, help='Specify the config file to use.')
     parser.add_argument('-s', '--show-config', action='store_true', help='Show the config file currently in use.')
-    
+    parser.add_argument('-v', '--version', action='store_true', help='Print version')
     args = parser.parse_args()
     
-    config_file = args.config if args.config else "data/trapster.conf"
+    if args.version:
+        print(__version__)
+        return
 
     if args.interfaces:
         list_interfaces()
         return
+
+    print('=== Starting Trapster Community ===')
+
+    if args.config:
+        config_file = args.config
+        print(f"[+] using config file at : {config_file}")
+    else:
+        config_file = os.path.dirname(__file__)+"/data/trapster.conf"
+        print(f"[+] using default config file at: {config_file}")
     
     if os.path.exists(config_file):
-        print(f"[+] using config file at : {config_file}")
         with open(config_file, 'r') as f:
             config = json.load(f)
     else:
@@ -97,10 +108,12 @@ def main():
         print(config)
         return
 
-    print('[+] Starting Trapster Community')
+    logger = set_logger(config)
+    if logger == None:
+        return
+
     manager = TrapsterManager(config)
 
-    logger = JsonLogger(config['id'])
     logger.whitelist_ips = []
 
     manager.logger = logger
