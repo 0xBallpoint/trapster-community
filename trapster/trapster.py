@@ -4,7 +4,7 @@ import argparse, json, socket, os
 
 from . import __version__
 from .modules import *
-from .logger import *
+from .logger import set_logger
 
 class TrapsterManager:
     def __init__(self, config):
@@ -16,17 +16,17 @@ class TrapsterManager:
             if interface == config_interface:
                 for addr in addrs:
                     if addr.family == socket.AF_INET:
+                        print(f"[+] Using IP: {addr.address}")
                         return addr.address
         
-        print(f"Interface {config_interface} does not exist, using 0.0.0.0")
+        print(f"[!] Interface {config_interface} does not exist, using 0.0.0.0")
         return
 
     async def start(self):
         ip = self.get_ip(self.config['interface'])
-
+        
         for service_type in self.config['services']:
             for service_config in self.config['services'][service_type]:
-
                 if service_type == 'ftp':
                     server = FtpHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'http':
@@ -87,7 +87,9 @@ def main():
     if args.interfaces:
         list_interfaces()
         return
-    
+
+    print('=== Starting Trapster Community ===')
+
     if args.config:
         config_file = args.config
         print(f"[+] using config file at : {config_file}")
@@ -106,10 +108,12 @@ def main():
         print(config)
         return
 
-    print('=== Starting Trapster Community ===')
+    logger = set_logger(config)
+    if logger == None:
+        return
+      
     manager = TrapsterManager(config)
 
-    logger = JsonLogger(config['id'])
     logger.whitelist_ips = []
 
     manager.logger = logger
