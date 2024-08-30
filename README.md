@@ -48,12 +48,9 @@ You should also change the `interface` name, Trapster uses that to discover the 
 
 ### Running the Daemon
 
-After installation, to start the Trapster daemon, simply use the trapster command inside your folder:
+After installation, to start the Trapster daemon, simply run command inside your folder:
 ```bash
-trapster
-```
-In development mode, you can use the main script:
-```bash
+python3 main.py -h
 python3 main.py
 ```
 
