@@ -14,7 +14,7 @@ class MysqlProtocol(BaseProtocol):
     
 
     config = {
-        "server_version": "5.6.4-m7-log",
+        "version": "5.6.4-m7-log",
         "auth_plugin": "mysql_native_password",
     }
 
@@ -52,7 +52,7 @@ class MysqlProtocol(BaseProtocol):
      
         max_size = int.from_bytes(data[0x08:0x0C], byteorder='little')
         username_end = data.index(b'\x00', 0x24, max_size - 0x24)
-        username = str(data[0x24:username_end], 'utf-8')
+        username = data[0x24:username_end].decode(errors='backslashreplace')
 
         password_len = data[username_end + 1]
         using_password = "YES" if password_len > 0 else "NO"
@@ -63,11 +63,11 @@ class MysqlProtocol(BaseProtocol):
             # converted to printable hex for loggin
             password = data[username_end + 2:password_end].hex()
         
-        extra_details = data[password_end:]
+        extra_details = data[password_end:].decode(errors='backslashreplace')
 
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={'username':username, 'password':password, 'details':extra_details})
 
-        local_ip, local_port = self.transport.get_extra_info('sockname')
+        local_ip, _ = self.transport.get_extra_info('sockname')
 
         self.transport.write(
             self.build_packet(
@@ -76,15 +76,11 @@ class MysqlProtocol(BaseProtocol):
             )
         )
 
-    def unrecognized_data(self, data):
-        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
-        self.transport.close()
-
     def initial_handshake(self):
         # https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html
         
         protocol_version = self.protocol_version
-        server_version = (self.config['server_version'] + '\x00').encode()
+        server_version = (self.config['version'] + '\x00').encode()
         connection_id = os.urandom(4) # b'\x56\x0a\x00\x00'
         auth_plugin_data_part_1 = os.urandom(8)
         filler_1 = b'\x00'

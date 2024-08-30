@@ -23,6 +23,10 @@ class TelnetProtocol(BaseProtocol):
     Telnet Honeypot server based on https://www.rfc-editor.org/rfc/rfc854
     """
     
+    versions = {
+        "D-Link DSL router": b"\xff\xfd\x01\xff\xfd!\xff\xfb\x01\xff\xfb\x03\r\nlogin: ",
+    }
+
     def __init__(self, config=None):
         if config:
             self.config = config
@@ -31,15 +35,11 @@ class TelnetProtocol(BaseProtocol):
         self.password = b''
         self.state = 'USERNAME'
 
-        self.banner = {
-            "D-Link DSL router": b"\xff\xfd\x01\xff\xfd!\xff\xfb\x01\xff\xfb\x03\r\nlogin: "
-        }
-
     def connection_made(self, transport):
         self.transport = transport
         self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
 
-        self.transport.write(self.banner[self.config['banner']])
+        self.transport.write(self.versions[self.config['version']])
 
     def data_received(self, data):
 
@@ -99,10 +99,6 @@ class TelnetProtocol(BaseProtocol):
         password = self.password.decode('utf-8', errors='replace')
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username": username, "password": password})
         self.transport.write(b"\r\nLogin incorrect.\r\n")
-        self.transport.close()
-
-    def unrecognized_data(self, data):
-        self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
         self.transport.close()
 
 class TelnetHoneypot(BaseHoneypot):

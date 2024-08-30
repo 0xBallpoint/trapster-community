@@ -1,0 +1,14 @@
+recursive-include trapster/modules/resources *
+include trapster/data/trapster.conf
+include requirements.txt
+
+recursive-exclude trapster/test *
+recursive-exclude .github *
+recursive-exclude docs *
+
+exclude Dockerfile.latest
+exclude Dockerfile.*
+exclude docker-compose.yml
+exclude .gitignore
+exclude .venv
+exclude venv

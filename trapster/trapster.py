@@ -111,7 +111,7 @@ def main():
     logger = set_logger(config)
     if logger == None:
         return
-
+      
     manager = TrapsterManager(config)
 
     logger.whitelist_ips = []

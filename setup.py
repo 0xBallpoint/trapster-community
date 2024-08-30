@@ -18,7 +18,6 @@ def get_version(rel_path):
             return line.split(delim)[1]
     raise RuntimeError("Unable to find version string.")
 
-
 requirements = read('requirements.txt').splitlines()
 
 setup(
@@ -31,8 +30,12 @@ setup(
     description='Trapster Daemon',
     long_description=read('README.md'),
     long_description_content_type='text/markdown',
+    license="AGPL3",
     packages=find_packages(include=['trapster', 'trapster.*', 'trapsterd']),
     include_package_data=True,
+    package_data={
+        '': ['requirements.txt'],
+    },
     platforms=['linux'],
     classifiers=[
         "Development Status :: 5 - Production/Stable",

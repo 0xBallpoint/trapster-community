@@ -159,8 +159,9 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+# VSCode
+.vscode/
+
 ###############
 ssh_host_key*
-
-#Https keys and certificates
-/data/https/
+*.pem
