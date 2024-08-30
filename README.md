@@ -54,6 +54,35 @@ python3 main.py -h
 python3 main.py
 ```
 
+### Running as a Service
+
+After installation, to create & start a Trapster service :
+
+vi /etc/systemd/system/trapster.service
+
+```bash
+[Unit]
+Description=Trapster Community
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/trapster-community/env/bin/python3 /opt/trapster-community/main.py -c /etc/trapster/trapster.conf
+Restart=always
+RestartSec=20
+
+StandardOutput=append:/var/log/trapster.log
+StandardError=append:/var/log/trapster.log
+
+[Install]
+WantedBy=multi-user.target' > /etc/systemd/system/trapster-community.service
+```
+
+then :wq
+
+systemctl start trapster.service
+systemctl status trapster
+
 ## Log format
 
 Each module can generates up to four types of logs: `connection`, `data`, `login`, and `query`.
@@ -61,6 +90,12 @@ Each module can generates up to four types of logs: `connection`, `data`, `login
 * `data`: Represents raw data that has been sent, logged in HEX format. This data is unprocessed.
 * `login`: Captures login attempts to the module. The data field is in JSON format and contains processed information.
 * `query`: Logs data that has been processed and does not correspond to an authentication attempt. The data field is in JSON format and contains processed information.
+
+### Read logs
+
+Logs are stored in /var/log/trapster.log according to the systemd service
+
+You can run an ELK stack to explore them efficiently
 
 ## Contributing
 
