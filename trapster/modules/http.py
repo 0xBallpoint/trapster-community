@@ -277,9 +277,6 @@ class HttpProtocol(BaseProtocol):
         
         folder = script_dir / self.config['skin']
 
-        # Ensure the resolved path is within the base directory
-        if not script_dir in folder.resolve().parents:
-            raise ValueError("Invalid file path")
         
         # Send 401 Unauthorized if basic_auth configuration
         if self.config['basic_auth'] == True:
@@ -294,14 +291,15 @@ class HttpProtocol(BaseProtocol):
         # Check requested filename
         filename = folder / location
 
-        if str(folder) not in str(filename):
+        # Ensure the resolved path is within the base directory
+        if not filename.resolve().is_relative_to(folder):
             with open(folder / "404.html", 'rb') as fp:
                 raise InvalidRequestError(404, version=request['version'], body=fp.read())
 
-        if os.path.isdir(filename):
+        if filename.is_dir():
             filename = filename / 'index.html'
 
-        if not os.path.isfile(filename):
+        if not filename.is_file():
             with open(folder / "404.html", 'rb') as fp:
                 raise InvalidRequestError(404, version=request.get('version'), body=fp.read())
 

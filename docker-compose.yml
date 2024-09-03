@@ -1,0 +1,10 @@
+services:
+  trapster-community:
+    container_name: trapster-community
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: "host"
+    restart: unless-stopped
+    volumes:
+      - ./trapster/data/trapster.conf:/etc/trapster/trapster.conf
