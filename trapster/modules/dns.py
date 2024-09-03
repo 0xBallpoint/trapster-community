@@ -1,7 +1,7 @@
 from .base import BaseProtocol, BaseHoneypot, UdpTransporter
 from .libs import dns
 
-import asyncio
+import asyncio, logging
         
 class EchoClientProtocol(asyncio.DatagramProtocol):
     def __init__(self, message, on_con_lost):
@@ -100,11 +100,11 @@ class DnsHoneypot(BaseHoneypot):
                                     local_addr=(self.bindaddr, self.port))
         
         # Create TCP server
-        self.server = await loop.create_server(self.handler, host=self.bindaddr, port=self.port)
         try:
+            self.server = await loop.create_server(self.handler, host=self.bindaddr, port=self.port)
             await self.server.serve_forever()
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            print(e)
+            logging.error(e)
             return False

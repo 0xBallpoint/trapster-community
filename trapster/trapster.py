@@ -1,6 +1,7 @@
 import asyncio
 import psutil
 import argparse, json, socket, os
+import logging
 
 from . import __version__
 from .modules import *
@@ -16,14 +17,14 @@ class TrapsterManager:
             if interface == config_interface:
                 for addr in addrs:
                     if addr.family == socket.AF_INET:
-                        print(f"[+] Using IP: {addr.address}")
+                        logging.info(f"Using IP: {addr.address} ({config_interface})")
                         return addr.address
         
-        print(f"[!] Interface {config_interface} does not exist, using 0.0.0.0")
+        logging.warning(f"Interface {config_interface} does not exist, using 0.0.0.0")
         return
 
     async def start(self):
-        ip = self.get_ip(self.config['interface'])
+        ip = self.get_ip(self.config.get('interface', None))
         
         for service_type in self.config['services']:
             for service_config in self.config['services'][service_type]:
@@ -41,6 +42,8 @@ class TrapsterManager:
                     server = VncHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'mysql':
                     server = MysqlHoneypot(service_config, self.logger, bindaddr=ip)
+                elif service_type == 'mssql':
+                    server = MssqlHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'postgres':
                     server = PostgresHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'ldap':
@@ -52,14 +55,14 @@ class TrapsterManager:
                 elif service_type == 'snmp':
                     server = SnmpHoneypot(service_config, self.logger, bindaddr=ip)
                 else:
-                    print(f"[-] Unreconized service {service_type}")
+                    logging.error(f"Unrecognized service {service_type}")
                     break
                                         
                 try:
-                    print(f"[+] Starting service {service_type} on port {service_config['port']}")
+                    logging.info(f"Starting service {service_type} on port {service_config['port']}")
                     await server.start()
                 except Exception as e:
-                    print(e)
+                    logging.error(f"Error starting {service_type}: {e}")
         
         while True:
             await asyncio.sleep(10)
@@ -69,11 +72,27 @@ def list_interfaces():
     for interface, addrs in interfaces.items():
         for addr in addrs:
             if addr.family == socket.AF_INET:
-                print(f"{addr.address}\t({interface})")
+                logging.info(f"{addr.address}\t({interface})")
 
-def main():
-    parser = argparse.ArgumentParser(description="Trapster Community honeypot.")
+def load_config(config_path):
+    if config_path:
+        logging.info(f"Using config file at: {config_path}")
+    else:
+        config_path = os.path.join(os.path.dirname(__file__), "data", "trapster.conf")
+        logging.info(f"Using default config file at: {config_path}")
     
+    if not os.path.exists(config_path):
+        logging.error(f'Config file {config_path} not found')
+        return None
+    
+    with open(config_path, 'r') as f:
+        return json.load(f)
+    
+def main():
+    # set logging level to INFO
+    logging.basicConfig(level=logging.INFO)
+    
+    parser = argparse.ArgumentParser(description="Trapster Community honeypot.")
     parser.add_argument('-i', '--interfaces', action='store_true', help='Show list of interfaces and their corresponding IPs.')
     parser.add_argument('-c', '--config', type=str, help='Specify the config file to use.')
     parser.add_argument('-s', '--show-config', action='store_true', help='Show the config file currently in use.')
@@ -81,31 +100,20 @@ def main():
     args = parser.parse_args()
     
     if args.version:
-        print(__version__)
+        logging.info(__version__)
         return
 
     if args.interfaces:
         list_interfaces()
         return
 
-    print('=== Starting Trapster Community ===')
-
-    if args.config:
-        config_file = args.config
-        print(f"[+] using config file at : {config_file}")
-    else:
-        config_file = os.path.dirname(__file__)+"/data/trapster.conf"
-        print(f"[+] using default config file at: {config_file}")
-    
-    if os.path.exists(config_file):
-        with open(config_file, 'r') as f:
-            config = json.load(f)
-    else:
-        print(f'[-] config file {config_file} not found')
+    logging.info('=== Starting Trapster Community ===')
+    config = load_config(args.config)
+    if not config:
         return
 
     if args.show_config:
-        print(config)
+        logging.info(config)
         return
 
     logger = set_logger(config)
@@ -113,12 +121,10 @@ def main():
         return
       
     manager = TrapsterManager(config)
-
     logger.whitelist_ips = []
-
     manager.logger = logger
 
     try:
         asyncio.run(manager.start())
     except KeyboardInterrupt:
-        print('Finishing')
+        logging.info('Finishing')

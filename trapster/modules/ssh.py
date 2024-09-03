@@ -4,7 +4,9 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 
-import asyncio, asyncssh, os, datetime
+import asyncio, asyncssh, os, datetime, logging
+
+logging.getLogger('asyncssh').setLevel(logging.WARNING)
 
 async def handle_client(process: asyncssh.SSHServerProcess) -> None:
     """
@@ -133,7 +135,7 @@ class SshHoneypot(BaseHoneypot):
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            print(e)
+            logging.error(e)
             return False
 
     def generate_keys(self):

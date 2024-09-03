@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
-import asyncio, httpx, redis, json, binascii
-
+import asyncio, httpx, redis, json, binascii, logging
 
 def set_logger(config):
     node_id = config.get('id')
@@ -15,16 +14,16 @@ def set_logger(config):
             try:
                 logger = Logger_class(node_id, **kwargs)
             except Exception as e:
-                print(f'[-] Invalid logger: {e}')
+                logging.error(f'[-] Invalid logger: {e}')
                 return
             
         else:
             raise TypeError
         
-        print(f"[+] using logger type: {logger_name} ")
+        logging.info(f"[+] using logger type: {logger_name} ")
         
     except: #Default to JsonLogger
-        print(f"[+] defaulting to logger type: JsonLogger")
+        logging.info(f"[+] defaulting to logger type: JsonLogger")
         return JsonLogger(node_id)
     
     return logger
@@ -90,7 +89,7 @@ class JsonLogger(BaseLogger):
         event = self.parse_log(logtype, transport, data, extra)
             
         if event:
-            print(event)
+            logging.info(event)
 
 class FileLogger(BaseLogger):
     def __init__(self, node_id, logfile = "/var/log/trapster-community.log", mode = "w+"):
@@ -107,7 +106,7 @@ class FileLogger(BaseLogger):
             self.file.write("\n")
             self.file.flush()
         except IOError as e:
-            print(f"An error occurred while writing to the log file: {e}")
+            logging.error(f"An error occurred while writing to the log file: {e}")
         
     def __del__(self):
         if self.file:
