@@ -1,5 +1,32 @@
 from datetime import datetime, timezone
-import asyncio, httpx, redis, json, binascii
+import asyncio, httpx, redis, json, binascii, logging
+
+def set_logger(config):
+    node_id = config.get('id')
+    try:
+        config.get('logger')
+        logger_name = config.get('logger').get('name')
+
+        if logger_name is not None: #Set logger type
+            Logger_class = globals().get(logger_name, None)
+            kwargs = config.get('logger').get("kwargs", None)
+
+            try:
+                logger = Logger_class(node_id, **kwargs)
+            except Exception as e:
+                logging.error(f'[-] Invalid logger: {e}')
+                return
+            
+        else:
+            raise TypeError
+        
+        logging.info(f"[+] using logger type: {logger_name} ")
+        
+    except: #Default to JsonLogger
+        logging.info(f"[+] defaulting to logger type: JsonLogger")
+        return JsonLogger(node_id)
+    
+    return logger
 
 class BaseLogger(object):
     CONNECTION  = "connection"
@@ -10,6 +37,7 @@ class BaseLogger(object):
     def __init__(self, node_id):
         self.node_id = node_id
         self.whitelist_ips = []
+        self.type = "Base"
 
     def parse_log(self, logtype, transport, data='', extra={}):
         try:
@@ -53,14 +81,18 @@ class BaseLogger(object):
         return event
 
 class JsonLogger(BaseLogger):
+    def __init__(self, node_id):
+        self.node_id = node_id
+        self.whitelist_ips = []
+
     def log(self, logtype, transport, data='', extra={}):
         event = self.parse_log(logtype, transport, data, extra)
             
         if event:
-            print(event)
+            logging.info(event)
 
 class FileLogger(BaseLogger):
-    def __init__(self, node_id, logfile, mode = "w+"):
+    def __init__(self, node_id, logfile = "/var/log/trapster-community.log", mode = "w+"):
         self.node_id = node_id
         self.logfile = logfile
         self.mode = mode
@@ -74,7 +106,7 @@ class FileLogger(BaseLogger):
             self.file.write("\n")
             self.file.flush()
         except IOError as e:
-            print(f"An error occurred while writing to the log file: {e}")
+            logging.error(f"An error occurred while writing to the log file: {e}")
         
     def __del__(self):
         if self.file:
@@ -96,11 +128,12 @@ class RedisLogger(BaseLogger):
 
 class ApiLogger(BaseLogger):
 
-    def __init__(self, node_id, api_key):
+    def __init__(self, node_id, url, headers={}):
         self.node_id = node_id
-        self.headers = {'Authorization': f'token {api_key}'}
+        self.url = url
+        self.headers = headers
         self.whitelist_ips = []
-
+        
     def log(self, logtype, transport, data='', extra={}):
         event = self.parse_log(logtype, transport, data, extra)
             
@@ -109,12 +142,10 @@ class ApiLogger(BaseLogger):
             loop.create_task(self.post_request(event))
 
     async def post_request(self, event):
-        print(event)
-        print('')
         response = await asyncio.to_thread(self._post_request_threaded, event)
         return response
 
     def _post_request_threaded(self, event):
         with httpx.Client(headers=self.headers) as client:
-            response = client.post('http://127.0.0.1:8000/api/v1/event/', json=event, timeout=10)
+            response = client.post(self.url, json=event, timeout=10)
         return response

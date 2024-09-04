@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from typing import Optional
 
 # https://svn.nmap.org/nmap/nmap-service-probes
@@ -72,7 +73,7 @@ class BaseHoneypot(object):
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            print(e)
+            logging.error(e)
             return False
 
     async def stop(self):
@@ -80,4 +81,4 @@ class BaseHoneypot(object):
         try:
             await self.task
         except asyncio.CancelledError:
-            print(f"Server {self.bindaddr}:{self.port} is cancelled now")
+            logging.info(f"Server {self.bindaddr}:{self.port} is cancelled now")

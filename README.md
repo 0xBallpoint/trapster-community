@@ -48,22 +48,49 @@ You should also change the `interface` name, Trapster uses that to discover the 
 
 ### Running the Daemon
 
-After installation, to start the Trapster daemon, simply use the trapster command inside your folder:
+After installation, to start the Trapster daemon, simply run command inside your folder:
 ```bash
-trapster
-```
-In development mode, you can use the main script:
-```bash
+python3 main.py -h
 python3 main.py
 ```
 
-## Log format
+### Running as a Service
 
+After installation, to create & start a Trapster service :
+
+```bash
+echo '[Unit]
+Description=Trapster Community
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/trapster-community/venv/bin/python3 /opt/trapster-community/main.py -c /etc/trapster/trapster.conf
+Restart=always
+RestartSec=20
+
+StandardOutput=append:/var/log/trapster.log
+StandardError=append:/var/log/trapster.log
+
+[Install]
+WantedBy=multi-user.target' > /etc/systemd/system/trapster-community.service
+
+service trapster start
+service trapster status
+```
+
+## Logs
+
+### Format
 Each module can generates up to four types of logs: `connection`, `data`, `login`, and `query`.
 * `connection`: Indicates that a connection has been made to the module.
 * `data`: Represents raw data that has been sent, logged in HEX format. This data is unprocessed.
 * `login`: Captures login attempts to the module. The data field is in JSON format and contains processed information.
 * `query`: Logs data that has been processed and does not correspond to an authentication attempt. The data field is in JSON format and contains processed information.
+
+### Read logs
+Logs are stored in /var/log/trapster.log according to the systemd service.
+You can run an ELK stack to explore them efficiently
 
 ## Contributing
 
