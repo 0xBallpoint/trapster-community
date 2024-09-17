@@ -1,355 +1,217 @@
-# -*- coding: utf-8 -*-
-
-from .base import BaseProtocol, BaseHoneypot
-
-# Based on https://github.com/thomwiggers/httpserver
-# __author__ = 'Thom Wiggers, Luuk Scholten'
-# __email__ = 'thom@thomwiggers.nl, info@luukscholten.com'
-# __version__ = '1.1.0'
-
-import asyncio
-import hashlib
-import mimetypes
-import os
-import re
+from aiohttp import web
+from jinja2.sandbox import ImmutableSandboxedEnvironment
+from jinja2 import FileSystemLoader, Undefined
+import yaml
+import random, string, base64, mimetypes, re
 from datetime import datetime, timezone
-from http.client import responses
 from pathlib import Path
 
+from .base import BaseHoneypot
 
-class InvalidRequestError(Exception):
-    """Raised for invalid requests. Contains the error code.
+class HttpHandler:
+    def __init__(self, config, logger):
+        self.protocol_name = "http"
 
-    This exception can be transformed to a http response.
-    """
+        self.config = config
+        self.logger = logger
 
-    def __init__(self, code, version="HTTP/1.1", body=None, headers=None, *args, **kwargs):
-        """Configures a new InvalidRequestError
+        self.NAME = config.get('skin', 'default_apache')
+        self.BASIC_AUTH = config.get('basic_auth', False)
+        self.USERNAME = config.get('username', None)
+        self.PASSWORD = config.get('password', None)
 
-        Arguments:
-            code -- the HTTP error code
-        """
-        super(InvalidRequestError, self).__init__(*args, **kwargs)
-        self.code = code
-        self.version = version
-        self.body = body
-        self.headers = headers if headers is not None else {
-            "Content-Type": "text/html; charset=utf-8"
+        self.data_folder = Path(__file__).parent.parent / "data" / "http" / self.NAME
+        self.static_folder = self.data_folder / "files"
+        self.template_folder = self.data_folder / "templates"
+        self.config_file = self.data_folder / "config.yaml"
+
+        self.http_config = self.load_config()
+        self.env = self.create_jinja_env()
+
+    def load_config(self):
+        with self.config_file.open('r') as file:
+            return yaml.safe_load(file)
+
+    @staticmethod
+    def sanitize_request(request):
+        if request:
+            return { 
+                "url": request.url,
+                "path": request.path,
+                "method": request.method,
+                "headers": dict(request.headers),
+                "body": request.body if request.body_exists else "",
+                "remote": request.remote, 
+                "cookies": request.cookies,
+                "query_string": request.query_string,
+                "content_type": request.content_type,
+                "host": request.host,
+                "secure": request.secure,
+                "scheme": request.scheme,
+                "path_qs": request.path_qs
+            }
+        
+    @staticmethod
+    def random_filter(seed=None, alphabet=string.hexdigits[:-6], length=36):
+        # Jinja filter to generate a random string
+        if seed is not None:
+            random.seed(seed)
+        return ''.join(random.choice(alphabet) for _ in range(length))
+
+    def create_jinja_env(self):
+        env = ImmutableSandboxedEnvironment(
+            loader=FileSystemLoader(self.template_folder),
+            autoescape=True
+        )
+        env.globals.update({
+            'random': self.random_filter,
+            'get_current_time': lambda: datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT'),
+        })
+        env.undefined = Undefined
+        return env
+
+    def get_endpoint_config(self, full_url, method):
+        for endpoint in self.http_config.get('endpoints', []):
+            for route, details in endpoint.items():
+                if re.fullmatch(route, full_url):
+                    if isinstance(details, list):
+                        return next((d for d in details if d['method'] == method), None)
+                    elif details['method'] == method:
+                        return details
+        return None
+
+    def get_content(self, endpoint_config, request=None):
+        if not endpoint_config:
+            return "", 200
+        
+        if 'content' in endpoint_config:
+            return endpoint_config['content'], endpoint_config.get('status_code', 200)
+        elif 'file' in endpoint_config:
+            file_path = self.template_folder / endpoint_config['file']
+            try:
+                if file_path.resolve().relative_to(self.template_folder.resolve()):
+                    file_path = file_path.resolve()
+                    with file_path.open('r') as file:
+                         # add request object to the template
+                        template = self.env.from_string(file.read())
+                        template.globals['request'] = self.sanitize_request(request)
+
+                    return template.render(), 200
+            except (ValueError, FileNotFoundError):
+                pass
+        return "File not found", 404
+
+    async def handle_error(self, request, error_code):
+        # Check if errors is defined in config.yaml, otherwise use a error template (like 401.html), otherwise send nothing
+        error_config = self.http_config.get('errors', {}).get(str(error_code))
+        if error_config:
+            content, _ = self.get_content(error_config)
+        else:
+            content, _ = self.get_content({"file": f"{error_code}.html"})
+
+        headers = self.http_config.get('headers', {}).copy()
+        headers.update(self.http_config.get('errors', {}).get(str(error_code), {}).get('headers', {}))
+        
+        if error_code == 401:
+            headers['WWW-Authenticate'] = 'Basic realm="Restricted Area"'
+        
+        await self.log(request, self.logger.QUERY, error_code)
+        return web.Response(body=content, content_type='text/html', status=error_code, headers=headers)
+
+    async def create_response(self, request, content, status_code, headers, endpoint_config=None):
+        # Use configured headers if available, otherwise use default headers
+        response_headers = self.http_config.get('headers', {}).copy()
+        if endpoint_config:
+            response_headers.update(endpoint_config.get('headers', {}))
+        response_headers.update(headers)
+
+        # Determine content type
+        content_type = response_headers.pop('Content-Type', 'text/html')
+
+        await self.log(request, self.logger.QUERY, status_code)
+        return web.Response(body=content, content_type=content_type, charset='utf-8', 
+                            status=status_code, headers=response_headers)
+
+    async def handle_request(self, request):
+        if self.BASIC_AUTH and not self.check_auth(request):
+            return await self.handle_error(request, 401)
+
+        full_url = request.url.path_qs
+        method = request.method
+        endpoint_config = self.get_endpoint_config(full_url, method)
+        headers = {}
+
+        if endpoint_config:
+            # Use configured response    
+            content, status_code = self.get_content(endpoint_config, request)
+            status_code = endpoint_config.get('status_code', status_code)
+        else:
+            content, status_code, headers = self.handle_static_file(request)
+
+        return await self.create_response(request, content, status_code, headers, endpoint_config)
+
+    def check_auth(self, request):
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Basic '):
+            return False
+        encoded_credentials = auth_header.split(' ', 1)[1]
+        username, password = base64.b64decode(encoded_credentials).decode('utf-8').split(':')
+        self.logger.log(f"{self.protocol_name}.{self.logger.LOGIN}", request.transport, 
+                        extra={"username": username, "password": password})
+        return username == self.USERNAME and password == self.PASSWORD
+
+    def handle_static_file(self, request):
+        if request.path.endswith('/'):
+            file_path = self.static_folder / request.path.lstrip('/') / 'index.html'
+        elif request.method == 'GET':
+            file_path = self.static_folder / request.path.lstrip('/')
+        else:
+            return self.get_default_response()
+
+        try:
+            if file_path.resolve().relative_to(self.static_folder) and file_path.is_file():
+                content = file_path.read_bytes()
+                content_type = mimetypes.guess_type(str(file_path))[0] or 'application/octet-stream'
+                return content, 200, {'Content-Type': content_type}
+        except ValueError:
+            pass
+        return self.get_default_response()
+
+    def get_default_response(self):
+        default_response = self.http_config.get('default')
+        content, _ = self.get_content(default_response)
+        status_code = default_response.get('status_code', 404)
+        return content, status_code, {}
+    
+    async def log(self, request, log_type, status_code, extra=None):
+        all_extra = {
+            "method": request.method,
+            "target": request.path,
+            "version": f"HTTP/{request.version.major}.{request.version.minor}",
+            "headers": dict(request.headers),
+            "status_code": status_code,
         }
 
-    def get_http_response(self):
-        """Get this exception as an HTTP response suitable for output"""
-        return HttpProtocol()._get_response(
-            version=self.version,
-            code=self.code,
-            body = self.body,
-            headers = self.headers
-        )
-
-class HttpProtocol(BaseProtocol):
-    """HTTP/1.1 Protocol implementation
-
-    Per connection made, one of these gets instantiated
-    """
-    config = {
-        "basic_auth": False,
-        "skin": "defaultApache"
-    }
-
-    def __init__(self, config=None, event_loop=None, timeout=10):
-        if config:
-            self.config = config
-
-        self.protocol_name = "http"
-        self.headers = {}
-
-        self._loop = event_loop or asyncio.get_event_loop()
-        self._timeout = timeout
-        self._timeout_handle = None
-
-    def connection_made(self, transport):
-        """Called when the connection is made"""
-        self.transport = transport
-        # too verbose self.logger.log(self.logger.LOG_HTTP_CONNECTION_MADE, self.transport)
-        self.transport = transport
-        self.keepalive = True
-
-        if self._timeout:
-            self._timout_handle = self._loop.call_later(
-                self._timeout, self._handle_timeout)
-
-    def data_received(self, data):
-        """Process received data from the socket
-
-        Called when we receive data
-        """
-        try:
-            request = self._parse_headers(data)
-            self._handle_request(request)
-        except InvalidRequestError as e:
-            self._write_response(e.get_http_response())
-
-        if not self.keepalive:
-            if self._timeout_handle:
-                self._timeout_handle.cancel()
-            self.transport.close()
-
-        if self._timeout and self._timeout_handle:
-            self._timeout_handle.cancel()
-            self._timout_handle = self._loop.call_later(
-                self._timeout, self._handle_timeout)
-
-    def _get_response(self, **kwargs):
-        """Get a template response
-
-        Use kwargs to add things to the dictionary
-        """
-        if 'code' not in kwargs:
-            kwargs['code'] = 200
-        if 'headers' not in kwargs:
-            kwargs['headers'] = dict()
-        if 'version' not in kwargs:
-            kwargs['version'] = 'HTTP/1.1'
-
-        return dict(**kwargs)
-
-    def _write_transport(self, string):
-        """Convenience function to write to the transport"""
-        if isinstance(string, str):  # we need to convert to bytes
-            self.transport.write(string.encode('utf-8'))
-        else:
-            self.transport.write(string)
-
-    def _write_response(self, response):
-        """Write the response back to the client
-
-        Arguments:
-        response -- the dictionary containing the response.
-        """
-        # add custom headers
-        if self.config['skin'] == "nasLogin":
-            response['headers'].update({
-                'Vary': 'Accept-Encoding',
-                'Cache-control': 'no-store',
-                'X-Content-Type-Options': 'nosniff',
-                'X-XSS-Protection': '1; mode=block',
-                'X-Frame-Options': 'SAMEORIGIN',
-                'P3P': 'CP="IDC DSP COR ADM DEVi TAIi PSA PSD IVAi IVDi CONi HIS OUR IND CNT"',
-                'Content-Security-Policy': "base-uri 'self';  connect-src ws: wss: *; default-src 'self' 'unsafe-eval' data: blob: https://*.synology.com https://www.synology.cn/; font-src 'self' data: https://*.googleapis.com https://*.gstatic.com; form-action 'self'; frame-ancestors 'self' https://gofile.me http://gofile.me; frame-src 'self' data: blob: https://*.synology.com https://www.synology.cn/; img-src 'self' data: blob: https://*.google.com https://*.googleapis.com http://*.googlecode.com https://*.gstatic.com; media-src 'self' data: about:;  script-src 'self' 'unsafe-eval' data: blob: https://*.synology.com https://www.synology.cn/ https://*.google.com https://*.googleapis.com; style-src 'self' 'unsafe-inline' https://*.googleapis.com;",
-                'Set-Cookie': 'id=;expires=Thu, 01-Jan-1970 00:00:01 GMT;path=/'
-            })
-        elif self.config['skin'] == "defaultIIS":
-            response['headers'].update({
-                'Server' : 'Microsoft-IIS/8.5',
-                'X-Powered-By': 'ASP.NET',
-                'X-AspNet-Version': '4.0.30319',
-                'Strict-Transport-Security': 'max-age=31536000; includeSubDomains;',
-                'X-XSS-Protection': '1; mode=block',
-            })
-                
-
-        # write response
-        status = '{} {} {}\r\n'.format(response['version'],
-                                       response['code'],
-                                       responses[response['code']])
-        self._write_transport(status)
-
-        if 'body' in response and 'Content-Length' not in response['headers']:
-            response['headers']['Content-Length'] = len(response['body'])
-
-        response['headers']['Date'] = datetime.now(timezone.utc).strftime(
-            "%a, %d %b %Y %H:%M:%S +0000")
-
-        for (header, content) in response['headers'].items():
-            self._write_transport('{}: {}\r\n'.format(header, content))
-
-        self._write_transport('\r\n')
-        if 'body' in response:
-            self._write_transport(response['body'])
-
-
-    def _parse_headers(self, data):
-        request = dict()
-
-        try:
-            request_strings = list(map(lambda x: x.decode(),
-                                   data.split(b'\r\n')))
-        except UnicodeDecodeError:
-            self.keepalive = False  # We don't trust you
-            raise InvalidRequestError(400, body='Bad request')
-
-        # Parse request method and HTTP version
-        method_line = request_strings[0].split()
-
-        # The first line has either 3 or 2 arguments
-        if not (2 <= len(method_line) <= 3):
-            # Got an invalid http header
-            self.keepalive = False  # We don't trust you
-            raise InvalidRequestError(400, body='Bad request')
-        # HTTP 0.9 isn't supported.
-        if len(method_line) == 2:
-            # Got a HTTP/0.9 request
-            self.keepalive = False  # HTTP/0.9 won't support persistence
-            raise InvalidRequestError(505, body="This server only supports HTTP/1.0"
-                                           "and HTTP/1.1")
-        else:
-            request['version'] = method_line[2]
-
-        # method
-        request['method'] = method_line[0]
-        # request URI
-        request['target'] = method_line[1]
-
-        # Parse the headers
-        request["headers"] = {}
-        for line in request_strings[1:]:
-            if line == '':  # an empty line signals the end of the headers
-                break
-            header, value = line.split(': ', 1)
-            request["headers"][header] = value
-        
-        # Retrieve POST data
-        try:
-            post_data = data.split(b'\r\n\r\n')[1]
-        except:
-            post_data = b'error'
-
-        extra = {"method":request.get('method'), "basic": False, "version" : request.get('version'), "target":request.get('target'), "headers": request.get('headers')}
-        if post_data != b'':
-            extra["data"] = post_data.decode(errors='backslashreplace')
-
-        # If Authorization Header : basic auth is True
-        if request["headers"].get("Authorization"):
-            extra['basic'] = True
-
-        # Log request
-        if extra['basic'] == True or extra['method'] == 'POST':
-            self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra=extra)
-        else:
-            self.logger.log(self.protocol_name + "." + self.logger.QUERY, self.transport, extra=extra)
- 
-        return request
-
-    def _get_request_uri(self, request):
-        """Parse the request URI into something useful
-
-        Server MUST accept full URIs (5.1.2)"""
-        request_uri = request.get('target')
-        if request_uri.startswith('/'):  # eg. GET /index.html
-            return (request.get('Host', 'localhost').split(':')[0],
-                    request_uri[1:])
-        elif '://' in request_uri:  # eg. GET http://rded.nl
-            locator = request_uri.split('://', 1)[1]
-            try:
-                host, path = locator.split('/', 1)
-            except ValueError:
-                host = locator
-                path = '/'
-            return (host.split(':')[0], path)
-
-    def _handle_request(self, request):
-        """Process the headers and get the file"""
-
-        # Check if this is a persistent connection.
-        if request.get('version') == 'HTTP/1.1':
-            self.keepalive = not request.get('Connection') == 'close'
-        elif request.get('version') == 'HTTP/1.0':
-            self.keepalive = request.get('Connection') == 'Keep-Alive'
-
-        # Check if we're getting a sane request
-        if request.get('method') not in ('GET', 'POST', 'HEAD'):
-            raise InvalidRequestError(501, version=request.get('version'), body='Method not implemented')
-        if request.get('version') not in ('HTTP/1.0', 'HTTP/1.1'):
-            raise InvalidRequestError(505, version=request.get('version'), body='Version not supported. Supported versions are: {}, {}'
-                .format('HTTP/1.0', 'HTTP/1.1'))
-
-        host, location = self._get_request_uri(request)
-
-        # We must ignore the Host header if a host is specified in GET
-        if host is None:
-            host = request.get('Host')
-
-
-        if self.config.get('directory'):
-            script_dir = Path(self.config.get('directory'))
-        else:
-            script_dir = Path(__file__).resolve().parent / "resources/httpskins"
-        
-        folder = script_dir / self.config['skin']
-
-        
-        # Send 401 Unauthorized if basic_auth configuration
-        if self.config['basic_auth'] == True:
-            with open(folder / "401.html", 'rb') as fp:
-                raise InvalidRequestError(401, version=request.get('version'),
-                    headers={
-                        'WWW-Authenticate': 'Basic realm="Unauthorized"',
-                        "Content-Type": "text/html; charset=utf-8"
-                    },
-                    body=fp.read())
-
-        # Check requested filename
-        filename = folder / location
-
-        # Ensure the resolved path is within the base directory
-        if not filename.resolve().is_relative_to(folder):
-            with open(folder / "404.html", 'rb') as fp:
-                raise InvalidRequestError(404, version=request['version'], body=fp.read())
-
-        if filename.is_dir():
-            filename = filename / 'index.html'
-
-        if not filename.is_file():
-            with open(folder / "404.html", 'rb') as fp:
-                raise InvalidRequestError(404, version=request.get('version'), body=fp.read())
-
-        # Start response with version
-        response = self._get_response(version=request.get('version'))
-
-        # timeout negotiation
-        match = re.match(r'timeout=(\d+)', request.get('Keep-Alive', ''))
-        if match is not None:
-            requested_timeout = int(match.group(1))
-            if requested_timeout < self._timeout:
-                self._timeout = requested_timeout
-
-        # tell the client our timeout
-        if self.keepalive:
-            response['headers'][
-                'Keep-Alive'] = 'timeout={}'.format(self._timeout)
-
-        # Set Content-Type
-        response['headers']['Content-Type'] = mimetypes.guess_type(
-            filename)[0] or 'text/html'
-
-        # Generate E-tag
-        sha1 = hashlib.sha1()
-        with open(filename, 'rb') as fp:
-            response['body'] = fp.read()
-            sha1.update(response['body'])
-        etag = sha1.hexdigest()
-
-        # Create 304 response if if-none-match matches etag
-        if request.get('If-None-Match') == '"{}"'.format(etag):
-            # 304 responses shouldn't contain many headers we might already
-            # have added.
-            response = self._get_response(code=304)
-
-        response['headers']['Etag'] = '"{}"'.format(etag)
-
-        self._write_response(response)
-
-    def _handle_timeout(self):
-        """Handle a timeout"""
-        self.transport.close()
-
+        if request.body_exists:
+            all_extra["data"] = (await request.read()).decode(errors='backslashreplace')
+        all_extra.update(extra or {})
+        self.logger.log(f"{self.protocol_name}.{log_type}", request.transport, extra=all_extra)
 
 
 class HttpHoneypot(BaseHoneypot):
-    """common class to all trapster instance"""
-
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
-        self.handler = lambda: HttpProtocol(config=config)
-        self.handler.logger = logger
-        self.handler.config = config
+        self.port = config['port']
+        self.handler = HttpHandler(config=config, logger=logger)
+
+    async def start(self):
+        app = web.Application()
+        app.add_routes([web.route('*', '/{path:.*}', self.handler.handle_request)])
+        runner = web.AppRunner(app, access_log=None, handle_signals=True)
+        await runner.setup()
+        self.site = web.TCPSite(runner, self.bindaddr, self.port)
+        await self.site.start()
+
+    async def stop(self):
+        if hasattr(self, 'site'):
+            await self.site.stop()

@@ -1,0 +1,14 @@
+name: default_iis
+description: Default IIS server
+headers:
+  Server: Microsoft-IIS/10.0
+
+endpoints:
+  - "/":
+    - method: GET
+      status_code: 200
+      file: index.html
+
+default:
+  status_code: 404
+  file: 404.html

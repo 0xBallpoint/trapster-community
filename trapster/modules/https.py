@@ -1,5 +1,6 @@
-from .http import HttpProtocol
-from .base import BaseHoneypot
+from .http import HttpHandler, HttpHoneypot
+
+from aiohttp import web
 
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
@@ -13,19 +14,17 @@ import datetime
 import asyncio
 import logging
 
-class HttpsProtocol(HttpProtocol):
-    def __init__(self, config=None, event_loop=None, timeout=10):
-        super().__init__(config, event_loop, timeout)
+class HttpsHandler(HttpHandler):
+    def __init__(self, config=None, logger=None):
+        super().__init__(config, logger)
         self.protocol_name = "https"
 
-class HttpsHoneypot(BaseHoneypot):
+class HttpsHoneypot(HttpHoneypot):
     """common class to all trapster instance"""
 
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
-        self.handler = lambda: HttpsProtocol(config=config)
-        self.handler.logger = logger
-        self.handler.config = config
+        self.handler = HttpsHandler(config=config, logger=logger)
 
         self.COUNTRY_NAME = config.get("country_name") or None
         self.STATE_OR_PROVINCE_NAME = config.get("state_or_province_name") or None
@@ -38,19 +37,16 @@ class HttpsHoneypot(BaseHoneypot):
 
         self.generate_certificate()
     
-    async def _start_server(self):
+    async def start(self):
         ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
         ssl_context.load_cert_chain(certfile=self.certificate_path, keyfile=self.key_path)
 
-        loop = asyncio.get_running_loop()
-        try:
-            self.server = await loop.create_server(self.handler, host=self.bindaddr, port=self.port, ssl=ssl_context)
-            await self.server.serve_forever()
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            logging.error(e)
-            return False
+        app = web.Application()
+        app.add_routes([web.route('*', '/{path:.*}', self.handler.handle_request)])
+        runner = web.AppRunner(app, access_log=None, handle_signals=True)
+        await runner.setup()
+        self.site = web.TCPSite(runner, self.bindaddr, self.port, ssl_context=ssl_context)
+        await self.site.start()
 
     def generate_certificate(self):
         '''
