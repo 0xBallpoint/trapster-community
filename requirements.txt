@@ -7,3 +7,4 @@ asyncssh>=2.14.2
 scapy>=2.5.0
 jinja2>=3.1.4
 PyYAML>=6.0.2
+aiohttp>=3.10.5

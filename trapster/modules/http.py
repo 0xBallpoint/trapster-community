@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .base import BaseHoneypot
+from .libs import ai
 
 class HttpHandler:
     def __init__(self, config, logger):
@@ -99,6 +100,10 @@ class HttpHandler:
                     return template.render(), 200
             except (ValueError, FileNotFoundError):
                 pass
+        elif 'ai' in endpoint_config:
+            prompt = endpoint_config['ai']['prompt'].replace("{{ path }}", request.path)
+            return ai.make_query('user', prompt), 200
+        
         return "File not found", 404
 
     async def handle_error(self, request, error_code):
@@ -186,7 +191,7 @@ class HttpHandler:
     async def log(self, request, log_type, status_code, extra=None):
         all_extra = {
             "method": request.method,
-            "target": request.path,
+            "target": request.path_qs,
             "version": f"HTTP/{request.version.major}.{request.version.minor}",
             "headers": dict(request.headers),
             "status_code": status_code,
