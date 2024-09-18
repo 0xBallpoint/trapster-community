@@ -1,0 +1,21 @@
+<html>
+<head>
+    <link href="/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="p-4">
+    <h1 class="text-2xl font-bold">Demo API</h1>
+
+    <div class="p-4">
+        <p>This is a demo API server. </p>
+        <p>Your API key is: {{ random(seed=(request.remote|string)) }}</p>
+        <p>The current time is: {{ get_current_time() }}</p>
+    </div>
+
+    <p class="pt-4"><strong>Get Users information</strong></p>
+    <ul>
+    {% for i in range(1, 11) %}
+        <li><a href="/api/v1/user?id={{ i }}">User {{ i }}</a></li>
+    {% endfor %}
+    </ul>
+</body>
+</html>

@@ -1,0 +1,14 @@
+name: default_apache
+description: Default Apache server
+headers:
+  Server: Apache/2.4.41 (Ubuntu)
+
+endpoints:
+  - "/":
+    - method: GET
+      status_code: 200
+      file: index.html
+
+default:
+  status_code: 404
+  file: 404.html

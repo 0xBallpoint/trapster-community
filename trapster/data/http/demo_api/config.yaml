@@ -1,0 +1,54 @@
+name: demo_api
+description: Learn how to create your own config file for the HTTP server
+
+# templates folder will be used to render the response using jinja2 templating
+# templates correspond to 'endpoints' that you defined in the 'endpoints' section
+# files folder will be used to serve static files
+
+# headers here are optional, and will be added to all responses
+headers:
+  Server: nginx
+  X-Powered-By: PHP/7.4.3
+
+# endpoints are matched in order, and the first one that matches is used
+endpoints:
+  - "/":
+    - method: GET
+      status_code: 200
+      file: index.html # serve the content of index.html
+
+  - "/robots.txt":
+    - method: GET
+      status_code: 200
+      # you can serve content from a file, or directly here as a string
+      content: | 
+        User-agent: *
+        Disallow: /
+      # you can also add headers to the response
+      headers:
+        Content-Type: text/plain
+
+  # you can use regex to match the path
+  - '/api/v1/user\?id=([1-9]|10)([#&].*)?$': #match digits 1-10, optional # or ? at the end and any trailing query string
+    - method: GET
+      status_code: 200
+      file: user.json # file use jinja2 templating to create dynamic content
+      headers:
+        Content-Type: application/json
+
+  - "/api/v1/user\\?id=([0-9]+)('|%27)(.*)":
+    - method: GET
+      status_code: 200
+      # you can use ai to generate the response
+      ai:
+        prompt: |
+          You are a HTTP API server, using MySQL, vulnerable to a SQLi. To try to understand how SQLi works, you are given an attacker payload and will write the expected output of the MYSQL.
+          Normal responses and errors are in JSON.
+          Write the expected output if the attacker payload is "{{ path }}". If the MYSQL query would returns an error, write the error.
+      headers:
+        Content-Type: application/json
+
+# if no endpoint matches, the default one is used
+default:
+  status_code: 404
+  file: 404.html
