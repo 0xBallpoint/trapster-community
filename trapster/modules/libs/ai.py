@@ -28,7 +28,6 @@ def make_query(role, prompt):
     ],
     "model": "Meta-Llama-3-8B-Instruct",
     "temperature": 0,
-    "seed": 0
     }
 
     headers = {
