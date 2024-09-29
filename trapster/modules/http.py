@@ -87,6 +87,7 @@ class HttpHandler:
         
         if 'content' in endpoint_config:
             return endpoint_config['content'], endpoint_config.get('status_code', 200)
+        
         elif 'file' in endpoint_config:
             file_path = self.template_folder / endpoint_config['file']
             try:
@@ -100,7 +101,9 @@ class HttpHandler:
                     return template.render(), 200
             except (ValueError, FileNotFoundError):
                 pass
+
         elif 'ai' in endpoint_config:
+            # experimental ai response
             prompt = endpoint_config['ai']['prompt'].replace("{{ path }}", request.path)
             return ai.make_query('user', prompt), 200
         
@@ -123,20 +126,6 @@ class HttpHandler:
         await self.log(request, self.logger.QUERY, error_code)
         return web.Response(body=content, content_type='text/html', status=error_code, headers=headers)
 
-    async def create_response(self, request, content, status_code, headers, endpoint_config=None):
-        # Use configured headers if available, otherwise use default headers
-        response_headers = self.http_config.get('headers', {}).copy()
-        if endpoint_config:
-            response_headers.update(endpoint_config.get('headers', {}))
-        response_headers.update(headers)
-
-        # Determine content type
-        content_type = response_headers.pop('Content-Type', 'text/html')
-
-        await self.log(request, self.logger.QUERY, status_code)
-        return web.Response(body=content, content_type=content_type, charset='utf-8', 
-                            status=status_code, headers=response_headers)
-
     async def handle_request(self, request):
         if self.BASIC_AUTH and not self.check_auth(request):
             return await self.handle_error(request, 401)
@@ -150,10 +139,21 @@ class HttpHandler:
             # Use configured response    
             content, status_code = self.get_content(endpoint_config, request)
             status_code = endpoint_config.get('status_code', status_code)
+            headers = endpoint_config.get('headers', {})
+            await self.log(request, self.logger.QUERY, status_code)
         else:
-            content, status_code, headers = self.handle_static_file(request)
+            content, status_code, headers = await self.handle_static_file(request)
+            # only default response is logged
 
-        return await self.create_response(request, content, status_code, headers, endpoint_config)
+        # Prepare response headers
+        response_headers = self.http_config.get('headers', {}).copy()
+        response_headers.update(headers)
+
+        # Determine content type
+        content_type = response_headers.pop('Content-Type', 'text/html')
+
+        return web.Response(body=content, content_type=content_type, charset='utf-8', 
+                            status=status_code, headers=response_headers)
 
     def check_auth(self, request):
         auth_header = request.headers.get('Authorization')
@@ -165,13 +165,13 @@ class HttpHandler:
                         extra={"username": username, "password": password})
         return username == self.USERNAME and password == self.PASSWORD
 
-    def handle_static_file(self, request):
+    async def handle_static_file(self, request):
         if request.path.endswith('/'):
             file_path = self.static_folder / request.path.lstrip('/') / 'index.html'
         elif request.method == 'GET':
             file_path = self.static_folder / request.path.lstrip('/')
         else:
-            return self.get_default_response()
+            return await self.handle_default(request)
 
         try:
             if file_path.resolve().relative_to(self.static_folder) and file_path.is_file():
@@ -179,13 +179,13 @@ class HttpHandler:
                 content_type = mimetypes.guess_type(str(file_path))[0] or 'application/octet-stream'
                 return content, 200, {'Content-Type': content_type}
         except ValueError:
-            pass
-        return self.get_default_response()
-
-    def get_default_response(self):
+            return "", 500, {}
+        return await self.handle_default(request)
+    async def handle_default(self, request):
         default_response = self.http_config.get('default')
         content, _ = self.get_content(default_response)
         status_code = default_response.get('status_code', 404)
+        await self.log(request, self.logger.QUERY, status_code)
         return content, status_code, {}
     
     async def log(self, request, log_type, status_code, extra=None):
