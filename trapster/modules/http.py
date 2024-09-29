@@ -13,7 +13,6 @@ class HttpHandler:
     def __init__(self, config, logger):
         self.protocol_name = "http"
 
-        self.config = config
         self.logger = logger
 
         self.NAME = config.get('skin', 'default_apache')
@@ -21,17 +20,24 @@ class HttpHandler:
         self.USERNAME = config.get('username', None)
         self.PASSWORD = config.get('password', None)
 
-        self.data_folder = Path(__file__).parent.parent / "data" / "http" / self.NAME
-        self.static_folder = self.data_folder / "files"
-        self.template_folder = self.data_folder / "templates"
-        self.config_file = self.data_folder / "config.yaml"
+        self.data_folder = Path(__file__).parent.parent / "data" / "http"
 
-        self.http_config = self.load_config()
-        self.env = self.create_jinja_env()
+    def setup(self):
+        try:
+            resolved_path = (self.data_folder / self.NAME).resolve()
+            if not resolved_path.is_relative_to(self.data_folder):
+                raise ValueError(f"Invalid skin name: {self.NAME}")
+        except (ValueError, RuntimeError):
+            self.NAME = "default_apache"  # Fallback to a default skin
 
-    def load_config(self):
+        self.static_folder = self.data_folder / self.NAME / "files"
+        self.template_folder = self.data_folder / self.NAME / "templates"
+        self.config_file = self.data_folder / self.NAME / "config.yaml"
+
         with self.config_file.open('r') as file:
-            return yaml.safe_load(file)
+            self.http_config = yaml.safe_load(file)
+        
+        self.env = self.create_jinja_env()
 
     @staticmethod
     def sanitize_request(request):
@@ -210,6 +216,7 @@ class HttpHoneypot(BaseHoneypot):
         self.handler = HttpHandler(config=config, logger=logger)
 
     async def start(self):
+        self.handler.setup()
         app = web.Application()
         app.add_routes([web.route('*', '/{path:.*}', self.handler.handle_request)])
         runner = web.AppRunner(app, access_log=None, handle_signals=True)

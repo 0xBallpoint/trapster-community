@@ -11,8 +11,6 @@ from cryptography.x509.oid import NameOID
 from pathlib import Path
 import ssl
 import datetime
-import asyncio
-import logging
 
 class HttpsHandler(HttpHandler):
     def __init__(self, config=None, logger=None):
@@ -41,6 +39,7 @@ class HttpsHoneypot(HttpHoneypot):
         ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
         ssl_context.load_cert_chain(certfile=self.certificate_path, keyfile=self.key_path)
 
+        self.handler.setup()
         app = web.Application()
         app.add_routes([web.route('*', '/{path:.*}', self.handler.handle_request)])
         runner = web.AppRunner(app, access_log=None, handle_signals=True)
