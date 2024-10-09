@@ -55,11 +55,19 @@ Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
 
 class SshProtocol(asyncssh.SSHServer, BaseProtocol):
 
-    def __init__(self):
+    config = {
+        'version': 'SSH-2.0-OpenSSH_5.3',
+        'banner': '',
+        'users': {
+            'root': '123456'
+        }
+    }
+
+    def __init__(self, config=None):
         self.protocol_name = "ssh"
-        self.passwords = {'root': '123456',
-             'guest': 'password'
-            }
+
+        if config:
+            self.config = config
 
     def connection_made(self, transport: asyncssh.SSHServerConnection) -> None:
         self.transport = transport
@@ -67,7 +75,11 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
 
     def begin_auth(self, username: str) -> bool:
         # If the user's password is the empty string, no auth is required
-        # return passwords.get(username) != ''
+        # return self.config.get('users').get(username) != ''
+        auth_banner = self.config.get('banner', None)
+        if auth_banner:
+            self.transport.send_auth_banner(auth_banner + '\n')
+    
         return True
 
     def password_auth_supported(self) -> bool:
@@ -76,7 +88,7 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
     async def validate_password(self, username: str, password: str) -> bool:
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username":username, "password":password})
         return False
-        #return self.passwords.get(username) == password
+        #return self.config.get('users').get('username') == password
 
     def public_key_auth_supported(self) -> bool:
         return True
@@ -100,8 +112,8 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
     # from https://asyncssh.readthedocs.io/en/latest/_modules/asyncssh/connection.html
     def _send_version(self) -> None:
         """Start the SSH handshake"""
-        version = b'SSH-2.0-' + b"OpenSSH_8.3p1 Ubuntu 1ubuntu0.1"
-
+        version = self.config.get('version', 'SSH-2.0-OpenSSH_5.3').encode()
+    
         if self.is_client():
             self._client_version = version
             self.set_extra_info(client_version=version.decode('ascii'))
@@ -110,9 +122,6 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
             self.set_extra_info(server_version=version.decode('ascii'))
 
         self._send(version + b'\r\n')
-
-
-    asyncssh.connection.SSHConnection._send_version = _send_version
 
 class SshHoneypot(BaseHoneypot):
     """common class to all trapster instance"""
