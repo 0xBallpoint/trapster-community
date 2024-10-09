@@ -54,7 +54,6 @@ Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
             pass
 
 class SshProtocol(asyncssh.SSHServer, BaseProtocol):
-
     config = {
         'version': 'SSH-2.0-OpenSSH_5.3',
         'banner': '',
@@ -71,6 +70,7 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
 
     def connection_made(self, transport: asyncssh.SSHServerConnection) -> None:
         self.transport = transport
+        self.transport._send_version = self.send_version
         self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
 
     def begin_auth(self, username: str) -> bool:
@@ -78,7 +78,7 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
         # return self.config.get('users').get(username) != ''
         auth_banner = self.config.get('banner', None)
         if auth_banner:
-            self.transport.send_auth_banner(auth_banner + '\n')
+            self.transport.send_auth_banner(auth_banner.encode() + '\r\n')
     
         return True
 
@@ -110,18 +110,18 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
         return False
 
     # from https://asyncssh.readthedocs.io/en/latest/_modules/asyncssh/connection.html
-    def _send_version(self) -> None:
+    def send_version(self) -> None:
         """Start the SSH handshake"""
         version = self.config.get('version', 'SSH-2.0-OpenSSH_5.3').encode()
     
-        if self.is_client():
-            self._client_version = version
-            self.set_extra_info(client_version=version.decode('ascii'))
+        if self.transport.is_client():
+            self.transport._client_version = version
+            self.transport.set_extra_info(client_version=version.decode('ascii'))
         else:
-            self._server_version = version
-            self.set_extra_info(server_version=version.decode('ascii'))
+            self.transport._server_version = version
+            self.transport.set_extra_info(server_version=version.decode('ascii'))
 
-        self._send(version + b'\r\n')
+        self.transport._send(version + b'\r\n')
 
 class SshHoneypot(BaseHoneypot):
     """common class to all trapster instance"""
