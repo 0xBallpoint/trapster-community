@@ -47,7 +47,7 @@ class HttpHandler:
                 "path": request.path,
                 "method": request.method,
                 "headers": dict(request.headers),
-                "body": request.body if request.body_exists else "",
+                "body": request.content if request.body_exists else None,
                 "remote": request.remote, 
                 "cookies": request.cookies,
                 "query_string": request.query_string,
@@ -186,13 +186,16 @@ class HttpHandler:
                 return content, 200, {'Content-Type': content_type}
         except ValueError:
             return "", 500, {}
+
         return await self.handle_default(request)
+
     async def handle_default(self, request):
         default_response = self.http_config.get('default')
         content, _ = self.get_content(default_response)
         status_code = default_response.get('status_code', 404)
+        headers = default_response.get('headers', {})
         await self.log(request, self.logger.QUERY, status_code)
-        return content, status_code, {}
+        return content, status_code, headers
     
     async def log(self, request, log_type, status_code, extra=None):
         all_extra = {
