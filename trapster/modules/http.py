@@ -39,15 +39,14 @@ class HttpHandler:
         
         self.env = self.create_jinja_env()
 
-    @staticmethod
-    def sanitize_request(request):
+    async def sanitize_request(self, request):
         if request:
             return { 
                 "url": request.url,
                 "path": request.path,
                 "method": request.method,
                 "headers": dict(request.headers),
-                "body": request.content if request.body_exists else None,
+                "body": await request.text() if request.body_exists else None,
                 "remote": request.remote, 
                 "cookies": request.cookies,
                 "query_string": request.query_string,
@@ -87,7 +86,29 @@ class HttpHandler:
                         return details
         return None
 
-    def get_content(self, endpoint_config, request=None):
+    def parse_front_matter(self, content):
+        """
+        This allows the rendered template to overwrite the status code of the request using:
+            ---
+            status_code: 500
+            ---
+
+        Returns:
+            tuple: A dictionary of metadata (e.g., status_code) and the template content.
+        """
+        if content.startswith('---'):
+            parts = content.split('---', 2)
+            if len(parts) >= 3:
+                header, body = parts[1].strip(), parts[2].strip()
+                metadata = {}
+                for line in header.splitlines():
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        metadata[key.strip()] = value.strip()
+                return metadata, body
+        return {}, content  # No front matter found, return empty metadata
+
+    async def get_content(self, endpoint_config, request=None):
         if not endpoint_config:
             return "", 200
         
@@ -99,12 +120,22 @@ class HttpHandler:
             try:
                 if file_path.resolve().relative_to(self.template_folder.resolve()):
                     file_path = file_path.resolve()
+                    # Read the template file
                     with file_path.open('r') as file:
-                         # add request object to the template
-                        template = self.env.from_string(file.read())
-                        template.globals['request'] = self.sanitize_request(request)
+                        raw_content = file.read()
 
-                    return template.render(), 200
+                    # Add the request object to the template and render it
+                    template = self.env.from_string(raw_content)
+                    template.globals['request'] = await self.sanitize_request(request)
+                    rendered_output = template.render()
+
+                    # Parse the front matter and template content
+                    metadata, template_content = self.parse_front_matter(rendered_output)
+
+                    # Extract the status_code from metadata or default to 200
+                    status_code = int(metadata.get('status_code', 200))
+
+                    return template_content, status_code
             except (ValueError, FileNotFoundError):
                 pass
 
@@ -119,9 +150,9 @@ class HttpHandler:
         # Check if errors is defined in config.yaml, otherwise use a error template (like 401.html), otherwise send nothing
         error_config = self.http_config.get('errors', {}).get(str(error_code))
         if error_config:
-            content, _ = self.get_content(error_config)
+            content, _ = await self.get_content(error_config)
         else:
-            content, _ = self.get_content({"file": f"{error_code}.html"})
+            content, _ = await self.get_content({"file": f"{error_code}.html"})
 
         headers = self.http_config.get('headers', {}).copy()
         headers.update(self.http_config.get('errors', {}).get(str(error_code), {}).get('headers', {}))
@@ -143,7 +174,7 @@ class HttpHandler:
 
         if endpoint_config:
             # Use configured response    
-            content, status_code = self.get_content(endpoint_config, request)
+            content, status_code = await self.get_content(endpoint_config, request)
             status_code = endpoint_config.get('status_code', status_code)
             headers = endpoint_config.get('headers', {})
             await self.log(request, self.logger.QUERY, status_code)
@@ -155,7 +186,7 @@ class HttpHandler:
         response_headers = self.http_config.get('headers', {}).copy()
         response_headers.update(headers)
 
-        # Determine content type
+        # Determine content type, we cannot use both content_type variable and Content-Type in headers
         content_type = response_headers.pop('Content-Type', 'text/html')
 
         return web.Response(body=content, content_type=content_type, charset='utf-8', 
@@ -191,7 +222,7 @@ class HttpHandler:
 
     async def handle_default(self, request):
         default_response = self.http_config.get('default')
-        content, _ = self.get_content(default_response)
+        content, _ = await self.get_content(default_response)
         status_code = default_response.get('status_code', 404)
         headers = default_response.get('headers', {})
         await self.log(request, self.logger.QUERY, status_code)
@@ -207,7 +238,7 @@ class HttpHandler:
         }
 
         if request.body_exists:
-            all_extra["data"] = (await request.read()).decode(errors='backslashreplace')
+            all_extra["data"] = await request.text()
         all_extra.update(extra or {})
         self.logger.log(f"{self.protocol_name}.{log_type}", request.transport, extra=all_extra)
 

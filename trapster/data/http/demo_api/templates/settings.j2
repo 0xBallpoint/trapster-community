@@ -1,0 +1,17 @@
+{#- The use of %- -% or #- -# ensure that no empty lines are present in the result. -#}
+{#- You can overwrite the response status_code using --- delimiters, and the variable status_code at the begining of the response -#}
+{% set messages = [
+    '{"error": "settings parameters not set"}',
+    '{"ok": "new settings accepted"}'
+] %}
+{%- if 'settings' not in request.body -%}
+---
+status_code: 400
+---
+    {{ messages[0] | safe }}
+{%- elif 'settings' in request.body -%}
+---
+status_code: 200
+---
+    {{ messages[1] | safe }}
+{%- endif %}
