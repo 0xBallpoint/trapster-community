@@ -28,11 +28,17 @@ endpoints:
       headers:
         Content-Type: text/plain
 
+  - '/api/v1/settings':
+    - method: POST # the status_code of the respond is dynamic and present in the jinja2 template
+      file: settings.j2 # file use jinja2 templating to create dynamic content
+      headers:
+        Content-Type: application/json
+
   # you can use regex to match the path
   - '/api/v1/user\?id=([1-9]|10)([#&].*)?$': #match digits 1-10, optional # or ? at the end and any trailing query string
     - method: GET
       status_code: 200
-      file: user.json # file use jinja2 templating to create dynamic content
+      file: user.j2 # file use jinja2 templating to create dynamic content
       headers:
         Content-Type: application/json
 
