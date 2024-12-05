@@ -4,15 +4,13 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 
-import asyncio, asyncssh, os, datetime, logging
+import asyncio, asyncssh, os, datetime, logging, uuid
+
+from .libs import ai
 
 logging.getLogger('asyncssh').setLevel(logging.WARNING)
 
-async def handle_client(process: asyncssh.SSHServerProcess) -> None:
-    """
-    Not used, but can be used if we want to allow SSH connection with a very simple simulated prompt
-    """
-    
+async def handle_client(process: asyncssh.SSHServerProcess) -> None:    
     welcome_message = '''Welcome to Ubuntu 20.10 (GNU/Linux 5.8.0-63-generic x86_64)
 
  * Documentation:  https://help.ubuntu.com
@@ -39,17 +37,34 @@ Failed to connect to https://changelogs.ubuntu.com/meta-release. Check your Inte
 
 Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
 '''
+
+    username = process.get_extra_info('username')
+
     now = datetime.datetime.now(datetime.UTC)
     process.stdout.write(welcome_message.format(time=now.strftime('%a %b  %d %H:%M:%S UTC %Y')))
 
-    while not process.stdin.at_eof():
+    session_id = str(uuid.uuid4())
+    redis_manager = ai.RedisManager()
+
+    while True:
         try:
-            process.stdout.write('root@computer:~# ')
-            await process.stdin.readline()
+            process.stdout.write(f'{username}@ubuntu:~$ ')
+            command = await process.stdin.readline()
+            if process.stdin.at_eof():
+                continue
+            command = command.strip()
+            result = await ai.make_query(redis_manager, session_id, command)
+            process.stdout.write(result + '\n')
         except asyncssh.misc.BreakReceived:
             process.stdout.write('\n')
             process.stdin.feed_eof()
             process.close()
+            break
+        except KeyboardInterrupt:
+            process.stdout.write('^C\n')
+            process.stdin.feed_eof() 
+            process.close()
+            break
         except asyncssh.misc.TerminalSizeChanged:
             pass
 
@@ -58,7 +73,7 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
         'version': 'SSH-2.0-OpenSSH_5.3',
         'banner': '',
         'users': {
-            'root': '123456'
+            'guest': '123456'
         }
     }
 
@@ -87,8 +102,7 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
 
     async def validate_password(self, username: str, password: str) -> bool:
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username":username, "password":password})
-        return False
-        #return self.config.get('users').get('username') == password
+        return True
 
     def public_key_auth_supported(self) -> bool:
         return True
