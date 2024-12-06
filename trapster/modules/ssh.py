@@ -50,9 +50,21 @@ Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
         try:
             process.stdout.write(f'{username}@ubuntu:~$ ')
             command = await process.stdin.readline()
-            if process.stdin.at_eof():
-                continue
+            
+            # Handle EOF (CTRL+D) or empty input
+            if process.stdin.at_eof() or not command:
+                process.stdout.write('\n')
+                process.close()
+                break
+                
             command = command.strip()
+            
+            # Handle exit command
+            if command in ['exit', 'logout']:
+                process.stdout.write('\n')
+                process.close()
+                break
+                
             result = await ai.make_query(redis_manager, session_id, command)
             process.stdout.write(result + '\n')
         except asyncssh.misc.BreakReceived:

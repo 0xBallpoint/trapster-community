@@ -1,4 +1,4 @@
-import requests
+import httpx
 from redis import asyncio as aioredis
 import json
 import asyncio
@@ -127,7 +127,7 @@ You are a simulation. You cannot execute real commands or modify real systems. A
     OVH_API_KEY = ""
     
     headers = {
-        "Authorization": f"Bearer {OVH_API_KEY}",
+        #"Authorization": f"Bearer {OVH_API_KEY}",
         "Content-Type": "application/json"
     }
 
@@ -141,7 +141,9 @@ You are a simulation. You cannot execute real commands or modify real systems. A
     # pretty print the payload to debug
     # print(json.dumps(payload, indent=4))
 
-    response = requests.post(URL, json=payload, headers=headers)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(URL, json=payload, headers=headers)
+
 
     if response.status_code == 200:
         response_data = response.json()    
