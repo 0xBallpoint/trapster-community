@@ -141,9 +141,12 @@ You are a simulation. You cannot execute real commands or modify real systems. A
     # pretty print the payload to debug
     # print(json.dumps(payload, indent=4))
 
-    async with httpx.AsyncClient() as client:
-        response = await client.post(URL, json=payload, headers=headers)
-
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(URL, json=payload, headers=headers)
+    except Exception as e:
+        print(e)
+        return "Error: " + str(e)
 
     if response.status_code == 200:
         response_data = response.json()    

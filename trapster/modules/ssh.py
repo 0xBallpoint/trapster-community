@@ -79,6 +79,10 @@ Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
             break
         except asyncssh.misc.TerminalSizeChanged:
             pass
+        except Exception as e:
+            process.stdout.write(f'Error: {e}\n')
+            process.close()
+            break
 
 class SshProtocol(asyncssh.SSHServer, BaseProtocol):
     config = {
