@@ -1,4 +1,4 @@
-from .http import HttpHandler, HttpHoneypot
+from trapster.modules.http import HttpHandler, HttpHoneypot
 
 from aiohttp import web
 

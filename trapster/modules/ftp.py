@@ -1,4 +1,4 @@
-from .base import BaseProtocol, BaseHoneypot
+from trapster.modules.base import BaseProtocol, BaseHoneypot
 
 class FtpProtocol(BaseProtocol):
 

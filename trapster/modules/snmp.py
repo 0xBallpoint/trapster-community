@@ -1,4 +1,4 @@
-from .base import BaseProtocol, BaseHoneypot, UdpTransporter
+from trapster.modules.base import BaseProtocol, BaseHoneypot, UdpTransporter
 
 import asyncio
 from scapy.all import SNMP

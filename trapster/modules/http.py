@@ -6,8 +6,8 @@ import random, string, base64, mimetypes, re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .base import BaseHoneypot
-from .libs import ai
+from trapster.modules.base import BaseHoneypot
+from trapster.libs.ai.http import HttpAI
 
 class HttpHandler:
     def __init__(self, config, logger):
@@ -141,8 +141,10 @@ class HttpHandler:
 
         elif 'ai' in endpoint_config:
             # experimental ai response
-            prompt = endpoint_config['ai']['prompt'].replace("{{ path }}", request.path)
-            return ai.make_query('user', prompt), 200
+            # prompt = endpoint_config['ai']['prompt'].replace("{{ path }}", request.path)
+            ai_agent = HttpAI()
+            result = await ai_agent.make_query("http", request.path)
+            return result, 200
         
         return "File not found", 404
 

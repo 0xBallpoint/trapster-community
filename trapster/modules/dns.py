@@ -1,5 +1,5 @@
-from .base import BaseProtocol, BaseHoneypot, UdpTransporter
-from .libs import dns
+from trapster.modules.base import BaseProtocol, BaseHoneypot, UdpTransporter
+from trapster.libs import dns
 
 import asyncio, logging
         
