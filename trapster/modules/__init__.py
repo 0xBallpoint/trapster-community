@@ -11,3 +11,4 @@ from .postgres import PostgresHoneypot
 from .ldap import LdapHoneypot
 from .snmp import SnmpHoneypot
 from .mssql import MssqlHoneypot
+from .rsync import RsyncHoneypot

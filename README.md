@@ -16,6 +16,21 @@ Visit the [Trapster website](https://trapster.cloud) to learn more about our com
 - **Expandable Services**: Add and configure as many services as needed with minimal effort.
 - **HTTP Honeypot Engine with AI capabilities**: Clone any website using YAML configuration, and use AI to generate responses to some HTTP requests.
 
+The protocols supported by Trapster are : 
+- DNS (works as a proxy to a real DNS server)
+- HTTP / HTTPS (with custom YAML configuration templating engine)
+- FTP
+- LDAP
+- MSSQL
+- POSTGRES
+- RDP
+- SNMP
+- SSH
+- TELNET
+- VNC
+- RSYNC
+
+
 ## Usage
 
 ### Configuration
