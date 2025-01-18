@@ -1,12 +1,15 @@
-# Trapster Community
+<p align="right">
+  <img src="https://github.com/user-attachments/assets/8b658484-c2ea-4c52-86b5-fe346dc37622" width="25%">
+</p>
 
+# Trapster Community
 ![License](https://img.shields.io/badge/license-AGPLv3+-blue)
 ![Python](https://img.shields.io/badge/python-3.11-blue)
 ![Status](https://img.shields.io/badge/status-Production/Stable-green)
 
 Trapster Community is a low-interaction honeypot designed to be deployed on internal networks. It is built to monitor and detect suspicious activities, providing a deceptive layer to network security.
 
-Visit the [Trapster website](https://trapster.cloud) to learn more about our commercial product, which includes advanced features like pre-configured hardened OS, automatic deployment, webhook, and SIEM integration.
+Visit the [Trapster website](https://trapster.cloud) to learn more about our commercial product, which includes advanced features like pre-configured hardened OS, automatic deployment, webhook, SIEM integration and much more...
 
 ## Features
 
@@ -16,19 +19,22 @@ Visit the [Trapster website](https://trapster.cloud) to learn more about our com
 - **Expandable Services**: Add and configure as many services as needed with minimal effort.
 - **HTTP Honeypot Engine with AI capabilities**: Clone any website using YAML configuration, and use AI to generate responses to some HTTP requests.
 
-The protocols supported by Trapster are : 
-- DNS (works as a proxy to a real DNS server)
-- HTTP / HTTPS (with custom YAML configuration templating engine)
-- FTP
-- LDAP
-- MSSQL
-- POSTGRES
-- RDP
-- SNMP
-- SSH
-- TELNET
-- VNC
-- RSYNC
+## Supported Protocols
+
+| Protocol | Notes |
+|----------|-------------|
+| DNS | Works as a proxy to a real DNS server |
+| HTTP/HTTPS | Features custom YAML configuration templating engine |
+| FTP | Capture FTP login attempts |
+| LDAP | Capture LDAP login attempts |
+| MSSQL | Capture MSSQL login attempts |
+| POSTGRES | Capture POSTGRES login attempts |
+| RDP | Capture RDP login attempts |
+| SNMP | Capture SNMP login attempts |
+| SSH | Capture SSH login attempts |
+| TELNET | Capture Telnet login attempts |
+| VNC | Capture VNC login attempts |
+| RSYNC | Capture RSYNC login attempts |
 
 
 ## Usage
