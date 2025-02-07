@@ -59,7 +59,7 @@ class RsyncProtocol(BaseProtocol):
             return
 
         else:
-            self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, extra={"module": data})
+            self.logger.log(self.protocol_name + "." + self.logger.QUERY, self.transport, extra={"module": data.decode('utf-8', errors='replace')})
             self.transport.write(f"@ERROR: unknown module '{module}'\n".encode())
             return
 
