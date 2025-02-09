@@ -1,0 +1,8 @@
+{% set id = request.url.path.split('/')[-1] %}
+{% set username = random(seed=id, alphabet='abcdefghijklmnopqrstuvwxyz', length=8) %}
+{
+  "id": "{{ id }}",
+  "username": "{{ username }}",
+  "email": "{{ username }}@example.com",
+  "password": "{{ random(seed=id) }}"
+}

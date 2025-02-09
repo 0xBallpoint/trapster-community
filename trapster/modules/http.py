@@ -177,7 +177,11 @@ class HttpHandler:
             content, status_code = await self.get_content(endpoint_config, request)
             status_code = endpoint_config.get('status_code', status_code)
             headers = endpoint_config.get('headers', {})
-            await self.log(request, self.logger.QUERY, status_code)
+            if method == "POST":
+                await self.log(request, self.logger.LOGIN, status_code)
+            else:
+                await self.log(request, self.logger.QUERY, status_code)
+
         else:
             content, status_code, headers = await self.handle_static_file(request)
             # only default response is logged
