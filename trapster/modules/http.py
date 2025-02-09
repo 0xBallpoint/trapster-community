@@ -39,6 +39,19 @@ class HttpHandler:
         
         self.env = self.create_jinja_env()
 
+    @staticmethod
+    def parse_query_string(query_string):
+        # Parse query string into a dictionary
+        query_dict = {}
+        if query_string:
+            for param in query_string.split('&'):
+                if '=' in param:
+                    key, value = param.split('=', 1)
+                    query_dict[key] = value
+                else:
+                    query_dict[param] = ''
+        return query_dict
+
     async def sanitize_request(self, request):
         if request:
             return { 
@@ -49,7 +62,7 @@ class HttpHandler:
                 "body": await request.text() if request.body_exists else None,
                 "remote": request.remote, 
                 "cookies": request.cookies,
-                "query_string": request.query_string,
+                "query_string": self.parse_query_string(request.query_string),
                 "content_type": request.content_type,
                 "host": request.host,
                 "secure": request.secure,
@@ -77,13 +90,64 @@ class HttpHandler:
         return env
 
     def get_endpoint_config(self, full_url, method):
+        # Parse URL and query parameters
+        base_url = full_url.split('?')[0]
+        query_string = full_url.split('?')[1] if '?' in full_url else ''
+        query_params = {}
+        if query_string:
+            for param in query_string.split('&'):
+                if '=' in param:
+                    key, value = param.split('=', 1)
+                    query_params[key] = value
+                else:
+                    query_params[param] = ''
+
         for endpoint in self.http_config.get('endpoints', []):
             for route, details in endpoint.items():
-                if re.fullmatch(route, full_url):
-                    if isinstance(details, list):
-                        return next((d for d in details if d['method'] == method), None)
-                    elif details['method'] == method:
-                        return details
+                # 1. Check base URL match first
+                if not re.fullmatch(route, base_url):
+                    continue
+
+                # 2. Check method match
+                if not isinstance(details, list):
+                    details = [details]  # Convert single config to list format
+
+                # Find all configs that match the method
+                matching_configs = [d for d in details if d['method'] == method]
+                if not matching_configs:
+                    continue
+
+                # 3. Handle query parameters
+                if not query_params:
+                    # URL has no query params - look for config without query rules
+                    no_query_config = next((d for d in matching_configs if not d.get('query')), None)
+                    if no_query_config:
+                        return no_query_config
+                else:
+                    # URL has query params - try to find matching query rules
+                    for config in matching_configs:
+                        if not config.get('query'):
+                            continue
+                        
+                        # Check each query parameter rule
+                        matches_all = True
+                        for rule in config['query']:
+                            for param_name, pattern in rule.items():
+                                if param_name not in query_params or not re.fullmatch(pattern, query_params[param_name]):
+                                    matches_all = False
+                                    break
+                            if not matches_all:
+                                break
+                        
+                        if matches_all:
+                            return config
+
+                    # If no query rules matched but we have a base URL match,
+                    # return the first config without query rules
+                    no_query_config = next((d for d in matching_configs if not d.get('query')), None)
+                    if no_query_config:
+                        return no_query_config
+        
         return None
 
     def parse_front_matter(self, content):
@@ -233,6 +297,12 @@ class HttpHandler:
         return content, status_code, headers
     
     async def log(self, request, log_type, status_code, extra=None):
+        '''
+        Log the request to the logger and extract login and password from the request body, if any
+        The POST data is logged as hex string in the data field
+        The rest is processed and logged in the extra field
+        '''
+
         all_extra = {
             "method": request.method,
             "target": request.path_qs,
@@ -240,11 +310,34 @@ class HttpHandler:
             "headers": dict(request.headers),
             "status_code": status_code,
         }
-
-        if request.body_exists:
-            all_extra["data"] = await request.text()
         all_extra.update(extra or {})
-        self.logger.log(f"{self.protocol_name}.{log_type}", request.transport, extra=all_extra)
+
+        data = ''
+        if request.body_exists:
+            data = await request.read()
+            if data:
+                form_data = data.decode('utf-8')
+                
+                query_direct = self.parse_query_string(form_data)
+                for key, value in query_direct.items():
+                    if key in ['login', 'username','account', 'user%5Blogin%5D', 'j_username']:
+                        all_extra['username'] = value
+                    elif key in ['password', 'credential', 'passwd', 'user%5Bpassword%5D', 'j_password']:
+                        all_extra['password'] = value
+                
+                # Handle XML/SOAP data
+                if '<Envelope' in form_data and '</Envelope>' in form_data:
+                    if '<userName>' in form_data and '</userName>' in form_data:
+                        username_start = form_data.find('<userName>') + len('<userName>')
+                        username_end = form_data.find('</userName>')
+                        all_extra['login'] = form_data[username_start:username_end]
+                        
+                    if '<password>' in form_data and '</password>' in form_data:
+                        password_start = form_data.find('<password>') + len('<password>')
+                        password_end = form_data.find('</password>')
+                        all_extra['password'] = form_data[password_start:password_end]
+        
+        self.logger.log(f"{self.protocol_name}.{log_type}", request.transport, data=data ,extra=all_extra)
 
 
 class HttpHoneypot(BaseHoneypot):
