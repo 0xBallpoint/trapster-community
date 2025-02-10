@@ -1,4 +1,4 @@
-from .base import BaseProtocol, BaseHoneypot
+from trapster.modules.base import BaseProtocol, BaseHoneypot
 
 class Socks5Protocol(BaseProtocol):
     '''based on RFC 1928 (https://datatracker.ietf.org/doc/html/rfc1928) '''

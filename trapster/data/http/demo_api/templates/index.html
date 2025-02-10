@@ -14,7 +14,7 @@
     <p class="pt-4"><strong>Get Users information</strong></p>
     <ul>
     {% for i in range(1, 11) %}
-        <li><a href="/api/v1/user/{{ i }}">User {{ i }}</a></li>
+        <li><a href="/api/v1/user?id={{ i }}">User {{ i }}</a></li>
     {% endfor %}
     </ul>
 </body>

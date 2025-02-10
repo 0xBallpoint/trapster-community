@@ -1,18 +1,16 @@
-from .base import BaseProtocol, BaseHoneypot
+from trapster.modules.base import BaseProtocol, BaseHoneypot
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 
-import asyncio, asyncssh, os, datetime, logging
+import asyncio, asyncssh, os, datetime, logging, uuid
+
+from trapster.libs.ai.ssh import UbuntuAI
 
 logging.getLogger('asyncssh').setLevel(logging.WARNING)
 
-async def handle_client(process: asyncssh.SSHServerProcess) -> None:
-    """
-    Not used, but can be used if we want to allow SSH connection with a very simple simulated prompt
-    """
-    
+async def handle_client(process: asyncssh.SSHServerProcess) -> None:    
     welcome_message = '''Welcome to Ubuntu 20.10 (GNU/Linux 5.8.0-63-generic x86_64)
 
  * Documentation:  https://help.ubuntu.com
@@ -39,26 +37,61 @@ Failed to connect to https://changelogs.ubuntu.com/meta-release. Check your Inte
 
 Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
 '''
+
+    username = process.get_extra_info('username')
+
     now = datetime.datetime.now(datetime.UTC)
     process.stdout.write(welcome_message.format(time=now.strftime('%a %b  %d %H:%M:%S UTC %Y')))
 
-    while not process.stdin.at_eof():
+    peer_addr = process.get_extra_info('peername')[0]
+    session_id = peer_addr
+    ai_agent = UbuntuAI()
+
+    while True:
         try:
-            process.stdout.write('root@computer:~# ')
-            await process.stdin.readline()
+            process.stdout.write(f'{username}@ubuntu:~$ ')
+            command = await process.stdin.readline()
+            
+            # Handle EOF (CTRL+D) or empty input
+            if process.stdin.at_eof() or not command:
+                process.stdout.write('logout\n')
+                process.stdout.write('\n')
+                process.close()
+                break
+                
+            command = command.strip()
+            
+            # Handle exit command
+            if command in ['exit', 'logout']:
+                process.stdout.write('logout\n')
+                process.close()
+                break
+            
+            result = await ai_agent.make_query("ssh:"+session_id, command)
+            process.stdout.write(result + '\n')
         except asyncssh.misc.BreakReceived:
             process.stdout.write('\n')
             process.stdin.feed_eof()
             process.close()
+            break
+        except KeyboardInterrupt:
+            process.stdout.write('^C\n')
+            process.stdin.feed_eof() 
+            process.close()
+            break
         except asyncssh.misc.TerminalSizeChanged:
             pass
+        except Exception as e:
+            process.stdout.write(f'Error: {e}\n')
+            process.close()
+            break
 
 class SshProtocol(asyncssh.SSHServer, BaseProtocol):
     config = {
         'version': 'SSH-2.0-OpenSSH_5.3',
         'banner': '',
         'users': {
-            'root': '123456'
+            'guest': '123456'
         }
     }
 
@@ -87,8 +120,10 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
 
     async def validate_password(self, username: str, password: str) -> bool:
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username":username, "password":password})
-        return False
-        #return self.config.get('users').get('username') == password
+        # Get the expected password for the username from the users dict
+        expected_password = self.config.get('users', {}).get(username)
+        # Compare the provided password with the expected password
+        return password == expected_password
 
     def public_key_auth_supported(self) -> bool:
         return True

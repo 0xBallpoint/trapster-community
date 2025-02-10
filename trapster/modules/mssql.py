@@ -1,7 +1,4 @@
-import asyncio
-from .base import BaseProtocol, BaseHoneypot
-from struct import pack, unpack
-from binascii import hexlify, unhexlify
+from trapster.modules.base import BaseProtocol, BaseHoneypot
 
 class MssqlProtocol(BaseProtocol):
     def __init__(self, config=None):

@@ -6,8 +6,8 @@ import random, string, base64, mimetypes, re
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .base import BaseHoneypot
-from .libs import ai
+from trapster.modules.base import BaseHoneypot
+from trapster.libs.ai.http import HttpAI
 
 class HttpHandler:
     def __init__(self, config, logger):
@@ -131,13 +131,13 @@ class HttpHandler:
                         
                         # Check each query parameter rule
                         matches_all = True
-                        for rule in config['query']:
-                            for param_name, pattern in rule.items():
-                                if param_name not in query_params or not re.fullmatch(pattern, query_params[param_name]):
-                                    matches_all = False
-                                    break
-                            if not matches_all:
+                        query_rules = config['query']
+                        for param_name, pattern in query_rules.items():
+                            if param_name not in query_params or not re.fullmatch(pattern, query_params[param_name]):
+                                matches_all = False
                                 break
+                        if not matches_all:
+                            break
                         
                         if matches_all:
                             return config
@@ -205,8 +205,12 @@ class HttpHandler:
 
         elif 'ai' in endpoint_config:
             # experimental ai response
-            prompt = endpoint_config['ai']['prompt'].replace("{{ path }}", request.path)
-            return ai.make_query('user', prompt), 200
+            ai_agent = HttpAI()
+            peer_addr = request.transport.get_extra_info('peername')[0]
+            session_id = peer_addr
+            result = await ai_agent.make_query("http:"+session_id, request.query_string)
+            result = result.replace('```json\n', '').replace('\n```', '') # sometime the AI response is wrapped in ```json
+            return result, 200
         
         return "File not found", 404
 

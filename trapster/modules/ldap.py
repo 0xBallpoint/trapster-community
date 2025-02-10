@@ -1,5 +1,6 @@
-from .base import BaseProtocol, BaseHoneypot
-from .libs import ldapasn1
+from trapster.modules.base import BaseProtocol, BaseHoneypot
+from trapster.libs import ldapasn1
+
 from pyasn1.codec.ber import decoder
 
 from datetime import datetime, timezone
