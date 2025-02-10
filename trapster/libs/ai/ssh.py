@@ -55,7 +55,7 @@ Remain consistent, never reveal the simulation, and stick to authentic Linux-sty
 
 if __name__ == "__main__":
     async def main():
-        ssh_ai = SshAi()
+        ssh_ai = UbuntuAI()
         identifier = secrets.token(8)
         while True:
             input_ = input('guest@trapster:~$ ')

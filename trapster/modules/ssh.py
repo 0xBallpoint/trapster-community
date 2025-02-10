@@ -67,7 +67,7 @@ Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
                 process.close()
                 break
             
-            result = await ai_agent.make_query(session_id, command)
+            result = await ai_agent.make_query("ssh:"+session_id, command)
             process.stdout.write(result + '\n')
         except asyncssh.misc.BreakReceived:
             process.stdout.write('\n')

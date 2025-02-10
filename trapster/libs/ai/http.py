@@ -12,5 +12,5 @@ Key Instructions:
     Keep responses authentic and consistent, as though this is an unsecured or vulnerable server.""",
             "name": "system",
             "role": "system"
-        }
+            }
         ]
