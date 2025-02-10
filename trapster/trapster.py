@@ -54,6 +54,8 @@ class TrapsterManager:
                     server = TelnetHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'snmp':
                     server = SnmpHoneypot(service_config, self.logger, bindaddr=ip)
+                elif service_type == 'rsync':
+                    server = RsyncHoneypot(service_config, self.logger, bindaddr=ip)
                 else:
                     logging.error(f"Unrecognized service {service_type}")
                     break
