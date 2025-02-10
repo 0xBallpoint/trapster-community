@@ -120,7 +120,10 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
 
     async def validate_password(self, username: str, password: str) -> bool:
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username":username, "password":password})
-        return True
+        # Get the expected password for the username from the users dict
+        expected_password = self.config.get('users', {}).get(username)
+        # Compare the provided password with the expected password
+        return password == expected_password
 
     def public_key_auth_supported(self) -> bool:
         return True
