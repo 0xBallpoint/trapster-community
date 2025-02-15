@@ -52,9 +52,9 @@ To install Trapster, clone the repository and use `setup.py` to install the depe
 ```bash
 git clone https://github.com/0xBallpoint/trapster-community/
 cd trapster-community
-python -m venv venv
+python3 -m venv venv
 source ./venv/bin/activate
-python setup.py install
+python3 -m pip install .
 
 python3 main.py -h
 python3 main.py
