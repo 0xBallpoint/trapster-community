@@ -1,33 +1,6 @@
 from datetime import datetime, timezone
 import asyncio, httpx, redis, json, binascii, logging
 
-def set_logger(config):
-    node_id = config.get('id')
-    try:
-        config.get('logger')
-        logger_name = config.get('logger').get('name')
-
-        if logger_name is not None: #Set logger type
-            Logger_class = globals().get(logger_name, None)
-            kwargs = config.get('logger').get("kwargs", None)
-
-            try:
-                logger = Logger_class(node_id, **kwargs)
-            except Exception as e:
-                logging.error(f'[-] Invalid logger: {e}')
-                return
-            
-        else:
-            raise TypeError
-        
-        logging.info(f"[+] using logger type: {logger_name} ")
-        
-    except: #Default to JsonLogger
-        logging.info(f"[+] defaulting to logger type: JsonLogger")
-        return JsonLogger(node_id)
-    
-    return logger
-
 class BaseLogger(object):
     CONNECTION  = "connection"
     DATA        = "data"
@@ -149,3 +122,40 @@ class ApiLogger(BaseLogger):
         with httpx.Client(headers=self.headers) as client:
             response = client.post(self.url, json=event, timeout=10)
         return response
+
+
+def set_logger(config):
+    node_id = config.get('id')
+    try:
+        config.get('logger')
+        logger_name = config.get('logger').get('name')
+
+        if logger_name is not None: #Set logger type
+            allowed_loggers = {
+                "JsonLogger": JsonLogger,
+                "FileLogger": FileLogger,
+                "RedisLogger": RedisLogger,
+                "ApiLogger": ApiLogger
+            }
+
+            # Use the whitelist to get the logger class
+            # do not use globals(), as it can be a security risk
+            Logger_class = allowed_loggers.get(logger_name, None)
+            kwargs = config.get('logger').get("kwargs", None)
+
+            try:
+                logger = Logger_class(node_id, **kwargs)
+            except Exception as e:
+                logging.error(f'[-] Invalid logger: {e}')
+                return
+            
+        else:
+            raise TypeError
+        
+        logging.info(f"[+] using logger type: {logger_name} ")
+        
+    except: #Default to JsonLogger
+        logging.info(f"[+] defaulting to logger type: JsonLogger")
+        return JsonLogger(node_id)
+    
+    return logger
