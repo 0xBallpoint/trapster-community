@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <title>FortiGate</title>
+    <base href="/"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="apple-itunes-app" content="app-id=1157004084, app-argument={{::host_addr}}"/>
+    <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png"/>
+    <link rel="shortcut icon" type="image/x-icon" href="favicon/favicon.ico"/>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png"/>
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png"/>
+    <link rel="manifest" href="favicon/site.webmanifest"/>
+    <link rel="mask-icon" href="favicon/safari-pinned-tab.svg" color="#d43527"/>
+    <link rel="shortcut icon" href="favicon/favicon.ico"/>
+    <meta name="msapplication-TileColor" content="#d43527"/>
+    <meta name="msapplication-config" content="favicon/browserconfig.xml"/>
+
+    <script>
+      function login_redirect(error) {
+        'use strict';
+        var url = window.location.pathname + window.location.search + window.location.hash;
+        if (error) {
+          console.warn(`Redirecting to login page: ${error}`);
+        } else {
+          console.warn('Redirecting to login page');
+        }
+        window.location.href = '/logout?redir=' + encodeURIComponent(url);
+      }
+
+      window.__fosLoginRedirect__ = login_redirect;
+
+      fetch('/api/v2/monitor/web-ui/extend-session').then(response => {
+        if (!response.ok && response.status === 401) {
+          login_redirect();
+        }
+      });
+    </script>
+  <link rel="stylesheet" href="45482074d2e66dcb140b5a178a24754d/styles.css"></head>
+  <body>
+    <fos-root></fos-root>
+  <script src="45482074d2e66dcb140b5a178a24754d/runtime.js" defer></script><script src="45482074d2e66dcb140b5a178a24754d/polyfills.js" defer></script><script src="45482074d2e66dcb140b5a178a24754d/main.js" defer></script></body>
+</html>

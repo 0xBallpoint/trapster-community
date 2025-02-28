@@ -1,0 +1,70 @@
+name: fortigate
+description: Fortigate honeypot
+headers:
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self'
+  X-Xss-Protection: 1; mode=block
+  Strict-Transport-Security: max-age=15552000
+  Cache-Control: max-age=31536000, immutable
+
+endpoints:
+  - "/logout":
+    - method: GET
+      status_code: 200
+      content: '<script language="javascript">
+top.location="/login?redir=%2F";
+</script>'
+
+  - "/login":
+    - method: GET
+      status_code: 200
+      file: login.html
+
+  - "/logincheck":
+    - method: GET
+      status_code: 302
+      headers:
+        Location: '/error/403/'
+        Content-Type: 'text/html; charset=iso-8859-1'
+      content: '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<html><head>
+<title>302 Found</title>
+</head><body>
+<h1>Found</h1>
+<p>The document has moved <a href="/error/403/">here</a>.</p>
+<p>Additionally, a 302 Found
+error was encountered while trying to use an ErrorDocument to handle the request.</p>
+</body></html>
+'
+    - method: POST
+      status_code: 200
+      file: logincheck.html
+
+  - "/error/(.*)":
+    - method: GET
+      status_code: 403
+      content: '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN"><html><head><title>Error</title></head><body><h1>Error</h1></body></html>'
+
+  - "/api/v2/monitor(.*)":
+    - method: GET
+      status_code: 401
+      file: 401.html
+      headers:
+        X-Frame-Options: SAMEORIGIN
+        Content-Security-Policy: frame-ancestors 'self'
+        X-Xss-Protection: 1; mode=block
+        Content-Type: text/html; charset=iso-8859-1
+
+  - "/api/(.*)":
+    - method: GET
+      status_code: 401
+      content: '<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN"><html><head><title>Error</title></head><body><h1>Error</h1></body></html>'
+
+  
+  - "/(?!(45482074d2e66dcb140b5a178a24754d|favicon)($|/))(.*)":
+    - method: GET
+      status_code: 200
+      file: index.html
+
+default:
+  status_code: 404
