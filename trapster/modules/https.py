@@ -1,6 +1,11 @@
 from trapster.modules.http import HttpHandler, HttpHoneypot
 
-from aiohttp import web
+import ssl
+import asyncio
+import uvicorn
+from fastapi import FastAPI, Request
+from pathlib import Path
+import datetime
 
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
@@ -36,16 +41,33 @@ class HttpsHoneypot(HttpHoneypot):
         self.generate_certificate()
     
     async def start(self):
+        self.handler.setup()
+        
+        @self.app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])
+        async def catch_all(request: Request, path: str):
+            return await self.handler.handle_request(request)
+        
+        # Start the server in a background task
+        loop = asyncio.get_running_loop()
+        self.task = loop.create_task(self._start_server())
+        return self.task
+    
+    async def _start_server(self):
         ssl_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
         ssl_context.load_cert_chain(certfile=self.certificate_path, keyfile=self.key_path)
-
-        self.handler.setup()
-        app = web.Application()
-        app.add_routes([web.route('*', '/{path:.*}', self.handler.handle_request)])
-        runner = web.AppRunner(app, access_log=None, handle_signals=True)
-        await runner.setup()
-        self.site = web.TCPSite(runner, self.bindaddr, self.port, ssl_context=ssl_context)
-        await self.site.start()
+        
+        config = uvicorn.Config(
+            app=self.app,
+            host=self.bindaddr,
+            port=self.port,
+            log_level="error",
+            access_log=False,
+            server_header=False,
+            ssl_keyfile=str(self.key_path),
+            ssl_certfile=str(self.certificate_path)
+        )
+        self.server = uvicorn.Server(config)
+        await self.server.serve()
 
     def generate_certificate(self):
         '''
@@ -87,7 +109,7 @@ class HttpsHoneypot(HttpHoneypot):
             .public_key(key.public_key())
             .serial_number(x509.random_serial_number())
             .not_valid_before(datetime.datetime.now())
-            .not_valid_after(datetime.datetime.now() + datetime.timedelta(days=90))
+            .not_valid_after(datetime.datetime.now() + datetime.timedelta(days=3650))
             .add_extension(alt_names, False)
             .sign(key, hashes.SHA256(), default_backend())
         )
