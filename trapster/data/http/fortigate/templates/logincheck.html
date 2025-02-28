@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html class="main-app">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=8; IE=EDGE">
+<meta http-equiv="pragma" content="no-cache">
+<meta name="viewport" content="width=device-width, initial-scale=1"><link rel="shortcut icon" type="image/x-icon" href="/favicon/favicon.ico" /><link rel="shortcut icon" href="/favicon/favicon.ico" /><link rel="icon" type="image/png" sizes="32x32" href="/favicon/favicon-32x32.png" /><link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" /><link rel="manifest" href="/favicon/site.webmanifest" /><link rel="mask-icon" href="/favicon/safari-pinned-tab.svg" color="#d43527" /><link href="/45482074d2e66dcb140b5a178a24754d/styles.css" rel="stylesheet" type="text/css">
+<link href="/45482074d2e66dcb140b5a178a24754d/css/legacy-main.css" rel="stylesheet" type="text/css">
+<script type='text/javascript'>
+    window.NEUTRINO_THEME = 'jade';
+</script>
+<script type="text/javascript" src="/45482074d2e66dcb140b5a178a24754d/js/legacy_theme_setup.js"></script>
+<script type='text/javascript'>
+    (function() {
+        var xhr = new XMLHttpRequest();
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                try {
+                    window.fgt_lang = JSON.parse(xhr.responseText);
+                } catch (e) {
+                    console.error('Failed to parse language JSON');
+                }
+            }
+        };
+        xhr.open('GET', '/45482074d2e66dcb140b5a178a24754d/lang/en.json', false);
+        xhr.send();
+    })()
+;</script>
+<script language="JavaScript">
+if (top.location != window.location) top.location.reload();
+if (window.opener) {    try {
+      window.opener.top.location.reload();
+      self.close();
+} catch (e) {}
+}
+</script>
+</head>
+<body>
+<div class="view-container ng1">
+<form class="prompt legacy-prompt flex-column" onsubmit="return false;" method="get" name="login" autocomplete="off">
+<div class="content with-header" style="transition: max-height 1s linear 0s; max-height: none;">
+<div class="header">
+<f-icon class="ftnt-fortinet-grid icon-xl"></f-icon></div>
+<div class="sub-content">
+<div class="wide-inputs ">
+<div class="error-message" id="err_msg" style="display: none">
+  <f-icon class="fa-error"></f-icon>
+  <div class="message-content" id="err_msg_content"></div>
+</div>
+<div class="warning-message" id="warn_msg" style="display: none">
+  <f-icon class="fa-warning"></f-icon>
+  <div class="message-content" id="warn_msg_content"></div>
+</div>
+<input type="text" name="username" id="username" value="" maxlength="64"autocorrect="off" autocapitalize="off" placeholder="Username" />
+<div id="credential-fields" class="">
+<input type=password autocomplete="off" name="secretkey" id="secretkey" placeholder="Password">
+<div id="token_msg" style="display: none; max-height: 300px; overflow: auto;"></div>
+<input type=hidden name="ftm_push_enabled" id="ftm_push_enabled" value="1"><input type="password" autocomplete="off" name="token_code"placeholder="Token Code" id="token_code" maxlength="128" style="display: none" disabled>
+</div>
+</div>
+<div id="login-button-container">
+<div class="button-actions wide">
+<button class="primary" name="login_button" id="login_button" type="button"onclick="try_login();" >Login</button>
+</div>
+</div>
+</div></div></form></div>
+<script type="text/javascript" src="/45482074d2e66dcb140b5a178a24754d/js/login.js"></script>
+<script language="Javascript">
+document.onkeydown = key_pressdown;
+document.forms[0].username.focus();
+</script>
+</body>
+</html>
