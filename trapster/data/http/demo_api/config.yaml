@@ -39,7 +39,6 @@ endpoints:
     - method: GET
       query:
         id: '([0-9]+)' #match digits
-        test: '123'
       status_code: 200
       file: user.j2 # file use jinja2 templating to create dynamic content
       headers:

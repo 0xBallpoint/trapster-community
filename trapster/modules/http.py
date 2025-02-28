@@ -1,4 +1,8 @@
-from aiohttp import web
+import uvicorn
+import asyncio
+from starlette.requests import ClientDisconnect
+from fastapi import FastAPI, Request, Response
+
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 from jinja2 import FileSystemLoader, Undefined
 import yaml
@@ -54,20 +58,25 @@ class HttpHandler:
 
     async def sanitize_request(self, request):
         if request:
+            body = None
+            if request.method in ["POST", "PUT", "PATCH"]:
+                body = await request.body()
+                body = body.decode() if body else None
+                
             return { 
                 "url": request.url,
-                "path": request.path,
+                "path": request.url.path,
                 "method": request.method,
                 "headers": dict(request.headers),
-                "body": await request.text() if request.body_exists else None,
-                "remote": request.remote, 
+                "body": body,
+                "remote": request.client.host if request.client else None, 
                 "cookies": request.cookies,
-                "query_string": self.parse_query_string(request.query_string),
-                "content_type": request.content_type,
-                "host": request.host,
-                "secure": request.secure,
-                "scheme": request.scheme,
-                "path_qs": request.path_qs
+                "query_string": dict(request.query_params),
+                "content_type": request.headers.get("content-type"),
+                "host": request.headers.get("host"),
+                "secure": request.url.scheme == "https",
+                "scheme": request.url.scheme,
+                "path_qs": str(request.url).split(request.base_url.netloc, 1)[1]
             }
         
     @staticmethod
@@ -116,7 +125,7 @@ class HttpHandler:
                 matching_configs = [d for d in details if d['method'] == method]
                 if not matching_configs:
                     continue
-
+                
                 # 3. Handle query parameters
                 if not query_params:
                     # URL has no query params - look for config without query rules
@@ -137,7 +146,7 @@ class HttpHandler:
                                 matches_all = False
                                 break
                         if not matches_all:
-                            break
+                            continue
                         
                         if matches_all:
                             return config
@@ -200,22 +209,26 @@ class HttpHandler:
                     status_code = int(metadata.get('status_code', 200))
 
                     return template_content, status_code
-            except (ValueError, FileNotFoundError):
+            except (ValueError, FileNotFoundError) as e:
+                print(f"Error: {e}")
                 pass
 
         elif 'ai' in endpoint_config:
             # experimental ai response
             ai_agent = HttpAI()
-            peer_addr = request.transport.get_extra_info('peername')[0]
+            peer_addr = request.client.host
             session_id = peer_addr
-            result = await ai_agent.make_query("http:"+session_id, request.query_string)
+            query_string = str(request.url).split('?', 1)[1] if '?' in str(request.url) else ''
+            result = await ai_agent.make_query("http:"+session_id, query_string)
             result = result.replace('```json\n', '').replace('\n```', '') # sometime the AI response is wrapped in ```json
             return result, 200
         
-        return "File not found", 404
+        return "", 404
 
     async def handle_error(self, request, error_code):
-        # Check if errors is defined in config.yaml, otherwise use a error template (like 401.html), otherwise send nothing
+        # Check if errors is defined in config.yaml
+        # otherwise use a error template (like 401.html)
+        # otherwise send nothing
         error_config = self.http_config.get('errors', {}).get(str(error_code))
         if error_config:
             content, _ = await self.get_content(error_config)
@@ -227,15 +240,28 @@ class HttpHandler:
         
         if error_code == 401:
             headers['WWW-Authenticate'] = 'Basic realm="Restricted Area"'
-        
+
         await self.log(request, self.logger.QUERY, error_code)
-        return web.Response(body=content, content_type='text/html', status=error_code, headers=headers)
+        return Response(content=content, media_type='text/html', status_code=error_code, headers=headers)
+
+    async def check_auth(self, request):
+        if not self.BASIC_AUTH:
+            return True
+            
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Basic '):
+            return False
+        encoded_credentials = auth_header.split(' ', 1)[1]
+        username, password = base64.b64decode(encoded_credentials).decode('utf-8').split(':')
+        await self.log(request, self.logger.LOGIN, 401, extra={"username": username, "password": password})
+        return username == self.USERNAME and password == self.PASSWORD
 
     async def handle_request(self, request):
-        if self.BASIC_AUTH and not self.check_auth(request):
+        if not await self.check_auth(request):
             return await self.handle_error(request, 401)
 
-        full_url = request.url.path_qs
+        full_url = str(request.url).split(request.base_url.netloc, 1)[1]
+        
         method = request.method
         endpoint_config = self.get_endpoint_config(full_url, method)
         headers = {}
@@ -261,24 +287,13 @@ class HttpHandler:
         # Determine content type, we cannot use both content_type variable and Content-Type in headers
         content_type = response_headers.pop('Content-Type', 'text/html')
 
-        return web.Response(body=content, content_type=content_type, charset='utf-8', 
-                            status=status_code, headers=response_headers)
-
-    def check_auth(self, request):
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Basic '):
-            return False
-        encoded_credentials = auth_header.split(' ', 1)[1]
-        username, password = base64.b64decode(encoded_credentials).decode('utf-8').split(':')
-        self.logger.log(f"{self.protocol_name}.{self.logger.LOGIN}", request.transport, 
-                        extra={"username": username, "password": password})
-        return username == self.USERNAME and password == self.PASSWORD
+        return Response(content=content, media_type=content_type, status_code=status_code, headers=response_headers)
 
     async def handle_static_file(self, request):
-        if request.path.endswith('/'):
-            file_path = self.static_folder / request.path.lstrip('/') / 'index.html'
+        if request.url.path.endswith('/'):
+            file_path = self.static_folder / request.url.path.lstrip('/') / 'index.html'
         elif request.method == 'GET':
-            file_path = self.static_folder / request.path.lstrip('/')
+            file_path = self.static_folder / request.url.path.lstrip('/')
         else:
             return await self.handle_default(request)
 
@@ -306,42 +321,56 @@ class HttpHandler:
         The POST data is logged as hex string in the data field
         The rest is processed and logged in the extra field
         '''
+        src_ip, src_port = request.client.host, request.client.port
+        dst_ip, dst_port = request.scope.get("server", ("unknown", "unknown"))
 
         all_extra = {
             "method": request.method,
-            "target": request.path_qs,
-            "version": f"HTTP/{request.version.major}.{request.version.minor}",
+            "target": str(request.url).split(request.base_url.netloc, 1)[1],
             "headers": dict(request.headers),
             "status_code": status_code,
+
+            # Manually added because transport doesn't exist
+            "src_ip": src_ip,
+            "src_port": src_port,
+            "dst_ip": dst_ip,
+            "dst_port": dst_port,
         }
+
         all_extra.update(extra or {})
 
         data = ''
-        if request.body_exists:
-            data = await request.read()
-            if data:
-                form_data = data.decode('utf-8')
+        if request.method in ["POST", "PUT", "PATCH"]:
+            try:
+                body = await request.body()
                 
-                query_direct = self.parse_query_string(form_data)
-                for key, value in query_direct.items():
-                    if key in ['login', 'username','account', 'user%5Blogin%5D', 'j_username']:
-                        all_extra['username'] = value
-                    elif key in ['password', 'credential', 'passwd', 'user%5Bpassword%5D', 'j_password']:
-                        all_extra['password'] = value
-                
-                # Handle XML/SOAP data
-                if '<Envelope' in form_data and '</Envelope>' in form_data:
-                    if '<userName>' in form_data and '</userName>' in form_data:
-                        username_start = form_data.find('<userName>') + len('<userName>')
-                        username_end = form_data.find('</userName>')
-                        all_extra['login'] = form_data[username_start:username_end]
-                        
-                    if '<password>' in form_data and '</password>' in form_data:
-                        password_start = form_data.find('<password>') + len('<password>')
-                        password_end = form_data.find('</password>')
-                        all_extra['password'] = form_data[password_start:password_end]
+                if body:
+                    data = body
+                    form_data = body.decode('utf-8', errors='replace')
+                    
+                    query_direct = self.parse_query_string(form_data)
+                    for key, value in query_direct.items():
+                        if key in ['login', 'username','account', 'user%5Blogin%5D', 'j_username']:
+                            all_extra['username'] = value
+                        elif key in ['password', 'credential', 'passwd', 'user%5Bpassword%5D', 'j_password', 'secretkey']:
+                            all_extra['password'] = value
+                    
+                    # Handle XML/SOAP data
+                    if '<Envelope' in form_data and '</Envelope>' in form_data:
+                        if '<userName>' in form_data and '</userName>' in form_data:
+                            username_start = form_data.find('<userName>') + len('<userName>')
+                            username_end = form_data.find('</userName>')
+                            all_extra['login'] = form_data[username_start:username_end]
+                            
+                        if '<password>' in form_data and '</password>' in form_data:
+                            password_start = form_data.find('<password>') + len('<password>')
+                            password_end = form_data.find('</password>')
+                            all_extra['password'] = form_data[password_start:password_end]
+            
+            except ClientDisconnect:
+                pass
         
-        self.logger.log(f"{self.protocol_name}.{log_type}", request.transport, data=data ,extra=all_extra)
+        self.logger.log(f"{self.protocol_name}.{log_type}", request.client, data=data, extra=all_extra)
 
 
 class HttpHoneypot(BaseHoneypot):
@@ -349,16 +378,66 @@ class HttpHoneypot(BaseHoneypot):
         super().__init__(config, logger, bindaddr)
         self.port = config['port']
         self.handler = HttpHandler(config=config, logger=logger)
+        self.app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+        
+        # Add middleware to remove unwanted headers
+        @self.app.middleware("http")
+        async def customize_headers(request: Request, call_next):
+            response = await call_next(request)
+            
+            # Store original headers
+            original_headers = dict(response.headers.items())
+            
+            # Clear all headers
+            headers_to_delete = list(response.headers.keys())
+            for key in headers_to_delete:
+                del response.headers[key]
+            
+            # Add back headers with proper capitalization, excluding unwanted ones
+            for key, value in original_headers.items():
+                if key.lower() != 'server':
+                    response.headers[key] = value
+
+            return response
+
+             
+        # Add a middleware to handle custom methods
+        @self.app.middleware("http")
+        async def custom_method_middleware(request: Request, call_next):
+            # Standard HTTP methods that FastAPI handles by default
+            standard_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"]
+            
+            if request.method not in standard_methods:
+                # For custom methods, directly call the handler instead of going through FastAPI routing
+                return await self.handler.handle_error(request, 405)
+            
+            # For standard methods, continue with normal FastAPI processing
+            return await call_next(request)
+
 
     async def start(self):
         self.handler.setup()
-        app = web.Application()
-        app.add_routes([web.route('*', '/{path:.*}', self.handler.handle_request)])
-        runner = web.AppRunner(app, access_log=None, handle_signals=True)
-        await runner.setup()
-        self.site = web.TCPSite(runner, self.bindaddr, self.port)
-        await self.site.start()
+        
+        @self.app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])
+        async def catch_all(request: Request, path: str):
+            return await self.handler.handle_request(request)
+        
+        # Start the server in a background task
+        loop = asyncio.get_running_loop()
+        self.task = loop.create_task(self._start_server())
+        return self.task
+    
+    async def _start_server(self):
+        config = uvicorn.Config(
+            app=self.app,
+            host=self.bindaddr,
+            port=self.port,
+            log_level="error",
+            access_log=False,
+            server_header=False
+        )
 
-    async def stop(self):
-        if hasattr(self, 'site'):
-            await self.site.stop()
+        self.server = uvicorn.Server(config)
+        await self.server.serve()
+
+
