@@ -379,6 +379,7 @@ class HttpHoneypot(BaseHoneypot):
         self.port = config['port']
         self.handler = HttpHandler(config=config, logger=logger)
         self.app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+        self.server = None
         
         # Add middleware to remove unwanted headers
         @self.app.middleware("http")
@@ -422,10 +423,7 @@ class HttpHoneypot(BaseHoneypot):
         async def catch_all(request: Request, path: str):
             return await self.handler.handle_request(request)
         
-        # Start the server in a background task
-        loop = asyncio.get_running_loop()
-        self.task = loop.create_task(self._start_server())
-        return self.task
+        return await super().start()
     
     async def _start_server(self):
         config = uvicorn.Config(
@@ -438,6 +436,18 @@ class HttpHoneypot(BaseHoneypot):
         )
 
         self.server = uvicorn.Server(config)
-        await self.server.serve()
+        try:
+            await self.server.serve()
+        except asyncio.CancelledError:
+            self.server.should_exit = True
+            await self.server.shutdown()
+            raise
 
-
+    async def stop(self):
+        if self.server:
+            # Signal the server to shut down
+            self.server.should_exit = True
+            # Wait for the server to shut down
+            await self.server.shutdown()
+        
+        return await super().stop()

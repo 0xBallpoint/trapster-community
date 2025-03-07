@@ -91,12 +91,14 @@ class DnsHoneypot(BaseHoneypot):
 
         self.handler_udp = DnsUdpProtocol
         self.handler_udp.config['dns1'] = proxy_dns_ip
+        self.udp_transport = None
+        self.udp_protocol = None
 
     async def _start_server(self):
         loop = asyncio.get_running_loop()
 
         # Create UDP server
-        transport, protocol = await loop.create_datagram_endpoint(lambda: self.handler_udp(), 
+        self.udp_transport, self.udp_protocol = await loop.create_datagram_endpoint(lambda: self.handler_udp(), 
                                     local_addr=(self.bindaddr, self.port))
         
         # Create TCP server
@@ -108,3 +110,11 @@ class DnsHoneypot(BaseHoneypot):
         except Exception as e:
             logging.error(e)
             return False
+
+    async def stop(self):
+        # Close UDP transport if it exists
+        if self.udp_transport:
+            self.udp_transport.close()
+            
+        # Call parent's stop method to handle TCP server
+        await super().stop()
