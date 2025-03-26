@@ -11,6 +11,12 @@ Trapster Community is a low-interaction honeypot designed to be deployed on inte
 
 Visit the [Trapster website](https://trapster.cloud) to learn more about our commercial version, which includes advanced features like pre-configured hardened OS, automatic deployment, webhook, SIEM integration and much more...
 
+#### 💬 Want to talk about deception, honeypots, or cyber threat intelligence (CTI)?
+
+Join our Discord community and connect with others who share your interest!
+
+[![Join Our Discord](https://img.shields.io/badge/Discord-Join%20Chat-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/nNJv8Hj5EE)
+
 ## Features
 
 - **Deceptive Security**: Mimics network services to lure and detect potential intruders.
