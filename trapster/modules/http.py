@@ -252,9 +252,13 @@ class HttpHandler:
         if not auth_header or not auth_header.startswith('Basic '):
             return False
         encoded_credentials = auth_header.split(' ', 1)[1]
-        username, password = base64.b64decode(encoded_credentials).decode('utf-8').split(':')
-        await self.log(request, self.logger.LOGIN, 401, extra={"username": username, "password": password})
-        return username == self.USERNAME and password == self.PASSWORD
+        try:
+            username, password = base64.b64decode(encoded_credentials).decode('utf-8').split(':')
+            await self.log(request, self.logger.LOGIN, 401, extra={"username": username, "password": password})
+            return username == self.USERNAME and password == self.PASSWORD
+        except Exception as e:
+            print(f"Error: {e}")
+            return False
 
     async def handle_request(self, request):
         if not await self.check_auth(request):
