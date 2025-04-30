@@ -1,11 +1,14 @@
 <p align="right">
-  <img src="https://github.com/user-attachments/assets/8b658484-c2ea-4c52-86b5-fe346dc37622" width="25%">
+  <a href="https://trapster.cloud">
+    <img src="https://github.com/user-attachments/assets/8b658484-c2ea-4c52-86b5-fe346dc37622" width="25%" alt="Trapster logo" />
+  </a>
 </p>
 
-# Trapster Community
-![License](https://img.shields.io/badge/license-AGPLv3+-blue)
-![Python](https://img.shields.io/badge/python-3.11-blue)
-![Status](https://img.shields.io/badge/status-Production/Stable-green)
+
+
+<h2 align="center" >Trapster Community </h2>
+<p align="center"><a href="https://trapster.cloud/">🌐 Website</a> · <a href="https://docs.trapster.cloud/">📚 Documentation</a> · <a href="https://discord.gg/nNJv8Hj5EE">💬 Discord</a></p>
+<br />
 
 Trapster Community is a low-interaction honeypot designed to be deployed on internal networks or to capture credentials. It is built to monitor and detect suspicious activities, providing a deceptive layer to network security.
 
