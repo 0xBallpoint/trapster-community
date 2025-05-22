@@ -7,6 +7,26 @@ from . import __version__
 from .modules import *
 from .logger import set_logger
 
+"""
+TrapsterManager is a comprehensive network security tool designed to dynamically configure and manage
+multiple honeypot services across various network protocols. The class supports flexible deployment of honeypots through 
+JSON configuration, allowing users to simulate services like 
+FTP, HTTP, SSH, DNS, VNC, MySQL, MSSQL, Postgres, LDAP, RDP, Telnet, SNMP, and Rsync.
+The main functionality is implemented through key methods:
+- `get_ip()`: Retrieves the IP address for a specified network interface
+- `start()`: Dynamically launches multiple honeypot services based on configuration
+- `load_config()`: Loads configuration from a JSON file
+
+The accompanying `main()` function provides a command-line interface with options to:
+    - List network interfaces
+    - Specify custom configuration files
+    - Show current configuration
+    - Display version information
+
+The tool is designed to enhance network security monitoring by creating realistic service simulations that can 
+detect and analyze potential cyber threats across multiple protocols, offering a flexible and extensible approach to honeypot deployment.
+"""
+
 class TrapsterManager:
     def __init__(self, config):
         self.logger = None
