@@ -10,6 +10,18 @@ from trapster.libs.ai.ssh import UbuntuAI
 
 logging.getLogger('asyncssh').setLevel(logging.WARNING)
 
+"""
+An advanced SSH honeypot implementation that simulates an Ubuntu SSH server environment, 
+designed to capture and analyze potential network intrusions. The system provides comprehensive authentication 
+mechanisms, including password and public key authentication, with detailed logging capabilities. 
+The SshHoneypot class extends BaseHoneypot and leverages asyncssh to create a realistic SSH server experience, featuring 
+configurable user credentials, custom version strings, and authentication banners. 
+Key functionalities include connection tracking, authentication validation, and comprehensive logging of login attempts with 
+detailed metadata. The honeypot is strategically designed to detect and record potential security threats 
+while presenting a convincing SSH server interface, integrating with the broader network deception framework 
+from base.py and utilizing AI-driven response generation from ssh.py for interactive session simulation.
+"""
+
 async def handle_client(process: asyncssh.SSHServerProcess) -> None:    
     welcome_message = '''Welcome to Ubuntu 20.10 (GNU/Linux 5.8.0-63-generic x86_64)
 
