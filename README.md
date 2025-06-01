@@ -118,7 +118,6 @@ If someone tries to login, you will get a log like this one:
 }
 ```
 
-
 ### AI ALPHA support
 To generate responses, you can use the `ai` field in the configuration. For now, it uses [OVHCloud AI Endpoints](https://endpoints.ai.cloud.ovh.net/) as it is still free, and in beta.
 The file `trapster/modules/libs/ai.py` contains the code to generate responses using the AI model. It is still very basic, and will be improved in the near future.
