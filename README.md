@@ -26,24 +26,23 @@ Visit the [Trapster website](https://trapster.cloud) to learn more about our com
 
 | Protocol | Notes |
 |----------|-------------|
-| DNS | Works as a proxy to a real DNS server |
-| HTTP/HTTPS | Features custom YAML configuration templating engine |
-| FTP | Capture FTP login attempts |
-| LDAP | Capture LDAP login attempts |
-| MSSQL | Capture MSSQL login attempts |
-| POSTGRES | Capture POSTGRES login attempts |
-| RDP | Capture RDP login attempts |
-| SNMP | Capture SNMP login attempts |
-| SSH | Capture SSH login attempts |
-| TELNET | Capture Telnet login attempts |
-| VNC | Capture VNC login attempts |
-| RSYNC | Capture RSYNC login attempts |
-
+| FTP (21) | Capture FTP login attempts |
+| SSH (22) | Capture SSH login attempts |
+| Telnet (23) | Capture TELNET login attempts |
+| DNS (53) | Works as a proxy to a real DNS server, and log queries |
+| HTTP/HTTPS (80/443) | Copy website, features custom YAML configuration templating engine |
+| SNMP (161) | Log SNMP queries |
+| LDAP (389) | Capture LDAP login attempts and queries |
+| Rsync (873) | Capture RSYNC login attempts |
+| MSSQL (1433) | Capture MSSQL login attempts |
+| MySQL (3306) | Capture MySQL login attempts |
+| RDP (3389) | Capture RDP login attempts |
+| PostgreSQL (5432) | Capture POSTGRES login attempts |
+| VNC (5900) | Capture VNC login attempts |
 
 ## Documentation and installation guide
 
 https://docs.trapster.cloud/community/
-
 
 ## Logs
 
