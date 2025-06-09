@@ -329,6 +329,7 @@ class HttpHandler:
         dst_ip, dst_port = request.scope.get("server", ("unknown", "unknown"))
 
         all_extra = {
+            "skin": self.NAME,
             "method": request.method,
             "target": str(request.url).split(request.base_url.netloc, 1)[1],
             "headers": dict(request.headers),
@@ -377,37 +378,53 @@ class HttpHandler:
         self.logger.log(f"{self.protocol_name}.{log_type}", request.client, data=data, extra=all_extra)
 
 
+class HeaderCapitalizationMiddleware:
+    """Custom ASGI middleware to preserve proper header capitalization"""
+    
+    def __init__(self, app):
+        self.app = app
+        # Only specify headers that don't follow standard title case
+        self.header_exceptions = {
+            'etag': 'ETag',
+            'www-authenticate': 'WWW-Authenticate',
+        }
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_wrapper(message):
+            # Intercept the response headers and modify them to preserve capitalization
+            if message["type"] == "http.response.start":
+                headers = []
+                for header_name, header_value in message.get("headers", []):
+                    name_str = header_name.decode("latin1").lower()
+                    value_str = header_value.decode("latin1")
+                    
+                    # Use exceptions for special cases, otherwise use title case
+                    proper_name = self.header_exceptions.get(name_str, header_name.decode("latin1").title())
+                    
+                    headers.append([proper_name.encode("latin1"), value_str.encode("latin1")])
+                
+                message["headers"] = headers
+                
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
 class HttpHoneypot(BaseHoneypot):
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
         self.port = config['port']
         self.handler = HttpHandler(config=config, logger=logger)
-        self.app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+        self.fastapi_app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+        self.app = None # will be set after route setup in start() method
         self.server = None
         
-        # Add middleware to remove unwanted headers
-        @self.app.middleware("http")
-        async def customize_headers(request: Request, call_next):
-            response = await call_next(request)
-            
-            # Store original headers
-            original_headers = dict(response.headers.items())
-            
-            # Clear all headers
-            headers_to_delete = list(response.headers.keys())
-            for key in headers_to_delete:
-                del response.headers[key]
-            
-            # Add back headers with proper capitalization, excluding unwanted ones
-            for key, value in original_headers.items():
-                if key.lower() != 'server':
-                    response.headers[key] = value
-
-            return response
-
-             
         # Add a middleware to handle custom methods
-        @self.app.middleware("http")
+        @self.fastapi_app.middleware("http")
         async def custom_method_middleware(request: Request, call_next):
             # Standard HTTP methods that FastAPI handles by default
             standard_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"]
@@ -419,13 +436,15 @@ class HttpHoneypot(BaseHoneypot):
             # For standard methods, continue with normal FastAPI processing
             return await call_next(request)
 
-
     async def start(self):
         self.handler.setup()
         
-        @self.app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])
+        @self.fastapi_app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])
         async def catch_all(request: Request, path: str):
             return await self.handler.handle_request(request)
+        
+        # Wrap the FastAPI app with custom ASGI middleware for header capitalization
+        self.app = HeaderCapitalizationMiddleware(self.fastapi_app)
         
         return await super().start()
     

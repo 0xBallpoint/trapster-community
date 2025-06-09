@@ -1,9 +1,9 @@
-from trapster.modules.http import HttpHandler, HttpHoneypot
+from trapster.modules.http import HttpHandler, HttpHoneypot, HeaderCapitalizationMiddleware
 
 import ssl
 import asyncio
 import uvicorn
-from fastapi import FastAPI, Request
+from fastapi import Request
 from pathlib import Path
 import datetime
 
@@ -43,9 +43,12 @@ class HttpsHoneypot(HttpHoneypot):
     async def start(self):
         self.handler.setup()
         
-        @self.app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])
+        @self.fastapi_app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"])
         async def catch_all(request: Request, path: str):
             return await self.handler.handle_request(request)
+        
+        # Now wrap the FastAPI app with custom ASGI middleware for header capitalization
+        self.app = HeaderCapitalizationMiddleware(self.fastapi_app)
         
         # Start the server in a background task
         loop = asyncio.get_running_loop()
