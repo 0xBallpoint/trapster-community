@@ -15,7 +15,7 @@ class HandlerAI(ABC):
         self.api_key = api_key
         self.headers = headers or {
             "Content-Type": "application/json",
-            #"Authorization": f"Bearer {self.api_key}"
+            "Authorization": f"Bearer {self.api_key}"
         }
         self.redis_manager = RedisManager()
         self.initial_messages = self._get_initial_messages()
