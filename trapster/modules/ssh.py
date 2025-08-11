@@ -4,9 +4,9 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 
-import asyncio, asyncssh, os, datetime, logging, uuid
+import asyncio, asyncssh, os, datetime, logging, random
 
-from trapster.libs.ai.ssh import UbuntuAI
+from trapster.ai import SSHAgent
 
 logging.getLogger('asyncssh').setLevel(logging.WARNING)
 
@@ -38,53 +38,76 @@ Failed to connect to https://changelogs.ubuntu.com/meta-release. Check your Inte
 Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
 '''
 
-    username = process.get_extra_info('username')
-
     now = datetime.datetime.now(datetime.UTC)
     process.stdout.write(welcome_message.format(time=now.strftime('%a %b  %d %H:%M:%S UTC %Y')))
 
+    # some variables
+    username = process.get_extra_info('username')
     peer_addr = process.get_extra_info('peername')[0]
-    session_id = peer_addr
-    ai_agent = UbuntuAI()
+    session_id = "ssh:" + peer_addr + ":" + username
+    current_directory = "~"
+    server_name = "ns" + str(random.randint(100000, 999999))
+
+    ai_agent = SSHAgent(username=username)
 
     while True:
+
         try:
-            process.stdout.write(f'{username}@ubuntu:~$ ')
+            process.stdout.write(f'{username}@{server_name}:{current_directory}$ ')
             command = await process.stdin.readline()
-            
+
             # Handle EOF (CTRL+D) or empty input
             if process.stdin.at_eof() or not command:
                 process.stdout.write('logout\n')
                 process.stdout.write('\n')
                 process.close()
-                break
+                return
                 
             command = command.strip()
+            if command == "":
+                continue
             
-            # Handle exit command
+            # exit command
             if command in ['exit', 'logout']:
                 process.stdout.write('logout\n')
                 process.close()
-                break
+                return
             
-            result = await ai_agent.make_query("ssh:"+session_id, command)
-            process.stdout.write(result + '\n')
+            # make query to AI agent
+            result = await ai_agent.make_query(session_id, command)
+
+            # handle result
+            result['directory'] = result['directory'] or "/home/guest/"
+            result['command_result'] = result['command_result'] or ""
+
+            if result['directory'] == f"/home/{username}/":
+                current_directory = "~"
+            else:
+                current_directory = result['directory'].replace(f"/home/{username}", "~")
+
+            if result['command_result'] == "":
+                continue
+
+            process.stdout.write(result['command_result'] + '\n')
+
         except asyncssh.misc.BreakReceived:
             process.stdout.write('\n')
             process.stdin.feed_eof()
             process.close()
-            break
+            return
         except KeyboardInterrupt:
             process.stdout.write('^C\n')
             process.stdin.feed_eof() 
             process.close()
-            break
+            return
         except asyncssh.misc.TerminalSizeChanged:
-            pass
+            process.stdout.write(f'\r')
+            continue
+
         except Exception as e:
             process.stdout.write(f'Error: {e}\n')
             process.close()
-            break
+            return
 
 class SshProtocol(asyncssh.SSHServer, BaseProtocol):
     config = {

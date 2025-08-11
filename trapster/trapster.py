@@ -23,9 +23,9 @@ class TrapsterManager:
         logging.warning(f"Interface {config_interface} does not exist, using 0.0.0.0")
         return
 
-    async def start(self):
+    async def start(self):    
         ip = self.get_ip(self.config.get('interface', None))
-        
+
         for service_type in self.config['services']:
             for service_config in self.config['services'][service_type]:
                 if service_type == 'ftp':
