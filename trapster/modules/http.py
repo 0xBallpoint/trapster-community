@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from trapster.modules.base import BaseHoneypot
-from trapster.libs.ai.http import HttpAI
+from trapster.ai import HTTPAgent
 
 class HttpHandler:
     def __init__(self, config, logger):
@@ -42,6 +42,7 @@ class HttpHandler:
             self.http_config = yaml.safe_load(file)
         
         self.env = self.create_jinja_env()
+
 
     @staticmethod
     def parse_query_string(query_string):
@@ -110,7 +111,6 @@ class HttpHandler:
                     query_params[key] = value
                 else:
                     query_params[param] = ''
-
         for endpoint in self.http_config.get('endpoints', []):
             for route, details in endpoint.items():
                 # 1. Check base URL match first
@@ -215,11 +215,18 @@ class HttpHandler:
 
         elif 'ai' in endpoint_config:
             # experimental ai response
-            ai_agent = HttpAI()
+            custom_ai_prompt = endpoint_config.get('ai', None)
+
+            http_agent = HTTPAgent(custom_ai_prompt=custom_ai_prompt)
+            
             peer_addr = request.client.host
             session_id = peer_addr
             query_string = str(request.url).split('?', 1)[1] if '?' in str(request.url) else ''
-            result = await ai_agent.make_query("http:"+session_id, query_string)
+
+            result = await http_agent.make_query("http:"+session_id, query_string)
+           
+            if result == None:
+                return '', 404
             result = result.replace('```json\n', '').replace('\n```', '') # sometime the AI response is wrapped in ```json
             return result, 200
         

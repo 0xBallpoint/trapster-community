@@ -3,22 +3,14 @@ from __future__ import annotations
 
 from typing import Dict, Any
 import logging
-import os
-from openai import AsyncOpenAI
+import json
 from agents import (
-    Agent,
-    OpenAIChatCompletionsModel,
     Runner,
     SQLiteSession,
-    set_tracing_disabled
 )
-from agents.extensions.handoff_prompt import prompt_with_handoff_instructions
-import json
-from pathlib import Path
 
-# Load environment variables from .env file
-from dotenv import load_dotenv
-load_dotenv()
+
+from trapster.ai.ai_agent import ai_agent
 
 def get_initial_prompt(username: str) -> str:
     return (f"""You are a Ubuntu Linux bash shell for a low-privilege user in /home/{username}. 
@@ -42,7 +34,7 @@ Assistant: [directory: "/home/{username}/", command_result: "Desktop Documents D
 """)
 
 
-class SSHAgent(Agent):
+class SSHAgent(ai_agent):
     """OpenAI-Agents implementation of an SSH-like shell agent.
 
     Usage:
@@ -51,42 +43,26 @@ class SSHAgent(Agent):
         result = await agent.make_query(session_id="ip-or-user", command="ls -la")
         # result: {"directory": "...", "command_result": "..."}
     """
-
-    def __init__(self, username: str | None = None) -> None:
-        # AI settings
-        self.memory_enable = os.getenv("AI_MEMORY_ENABLE", "false") == "true"
-        self.memory_path = os.getenv("AI_MEMORY_PATH", str(Path(__file__).parent.parent / "data" / "ai_memory.db"))
-        self.model_name = os.getenv("AI_MODEL", "o4-mini")
-        self.base_url = os.getenv("AI_BASE_URL", "https://api.openai.com/v1/")
-        self.api_key = os.getenv("AI_API_KEY") or os.getenv("OPENAI_API_KEY") or ""
-        self.username = username or "guest"
-
-        # Shared OpenAI client
-        self.client = AsyncOpenAI(base_url=self.base_url, api_key=self.api_key)
-        self.sessions: dict[str, SQLiteSession] = {}
-        set_tracing_disabled(disabled=True)
-
-        # Add recommended handoff instructions prefix
-        shell_prompt = prompt_with_handoff_instructions(get_initial_prompt(self.username))
-    
-        # Main Agent init
+    def __init__(
+        self,
+        *,
+        model_name: str | None = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        memory_path: str | None = None,
+        custom_ai_prompt: str | None = None,
+        temperature: float | None = None,
+    ) -> None:
         super().__init__(
-            name="SSH Agent",
-            model=OpenAIChatCompletionsModel(model=self.model_name, openai_client=self.client),
-            instructions=shell_prompt
+            model_name=model_name,
+            module_name="SSH Agent",
+            api_key=api_key,
+            base_url=base_url,
+            memory_path=memory_path,
+            custom_ai_prompt=custom_ai_prompt,
+            temperature=temperature,
         )
-
-    # Session helpers
-    def _ensure_session(self, session_id: str) -> SQLiteSession:
-        sess = self.sessions.get(session_id)
-        if not sess:
-            if self.memory_enable:
-                sess = SQLiteSession(session_id, self.memory_path)
-            else:
-                sess = SQLiteSession(session_id)
-            self.sessions[session_id] = sess
-        return sess
-
+   
     async def make_query(self, session_id: str, command: str) -> Dict[str, Any]:
         result = await Runner.run(self, command, session=self._ensure_session(session_id))
         output = result.final_output
