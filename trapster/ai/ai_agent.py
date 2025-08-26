@@ -76,8 +76,8 @@ class ai_agent(Agent):
     async def make_query(self, session_id: str, command: str) -> Dict[str, Any]:
         try:
             result = await Runner.run(self, command, session=self._ensure_session(session_id))
-            output = result.final_output
+            
         except Exception as e:
             print(f"[debug] error: {e}")
-            output = None
-        return output
+            result = None
+        return result

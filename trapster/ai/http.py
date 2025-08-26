@@ -51,6 +51,5 @@ class HTTPAgent(ai_agent):
     async def make_query(self, session_id: str, command: str) -> Dict[str, Any]:
         result = await Runner.run(self, command, session=self._ensure_session(session_id))
         output = result.final_output
-
-
         print(f"[debug] output: {output}")
+        return output
