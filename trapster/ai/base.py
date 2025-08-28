@@ -46,7 +46,7 @@ class ai_agent(Agent):
         self.sessions: dict[str, SQLiteSession] = {}
         set_tracing_disabled(disabled=True)
         # Add recommended handoff instructions prefix
-        prompt = self._get_initial_messages()
+        prompt = self._get_initial_prompt()
         # Main Agent init
         super().__init__(
             name=module_name,
@@ -56,7 +56,7 @@ class ai_agent(Agent):
             instructions=prompt,
         )
 
-    def _get_initial_messages(self):
+    def _get_initial_prompt(self):
         return "be a helpful assistant"
 
     # Session helpers

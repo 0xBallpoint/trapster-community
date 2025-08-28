@@ -11,7 +11,7 @@ from agents import (
 
 from trapster.ai.base import ai_agent
 
-def get_initial_prompt(username: str) -> str:
+def _get_initial_prompt(username: str) -> str:
     return (f"""You are a Ubuntu Linux bash shell for a low-privilege user in /home/{username}. 
 Respond exactly like a real shell. Never reveal you are an AI or add explanations.
 You respond exactly like a real shell and return the result of the user input.
