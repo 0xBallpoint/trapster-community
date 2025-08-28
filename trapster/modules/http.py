@@ -11,20 +11,31 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from trapster.modules.base import BaseHoneypot
-from trapster.libs.ai.http import HttpAI
+from trapster.ai import HTTPAgent
 
 class HttpHandler:
     def __init__(self, config, logger):
         self.protocol_name = "http"
 
         self.logger = logger
+        self.logger.debug = False
 
         self.NAME = config.get('skin', 'default_apache')
         self.BASIC_AUTH = config.get('basic_auth', False)
         self.USERNAME = config.get('username', None)
         self.PASSWORD = config.get('password', None)
-
         self.data_folder = Path(__file__).parent.parent / "data" / "http"
+    
+    def get_custom_ai_prompts(self):
+        custom_ai_prompts = {}
+        for endpoint in self.http_config.get('endpoints', []):
+            
+            for route, details in endpoint.items():
+                if 'ai' in details[0]:
+                    print(route, details[0]['ai'])
+                    custom_ai_prompts[route] = details[0]['ai']
+        print("custom_ai_prompts", custom_ai_prompts)
+        return custom_ai_prompts
 
     def setup(self):
         try:
@@ -42,6 +53,9 @@ class HttpHandler:
             self.http_config = yaml.safe_load(file)
         
         self.env = self.create_jinja_env()
+
+        self.http_agent = HTTPAgent()
+
 
     @staticmethod
     def parse_query_string(query_string):
@@ -110,7 +124,6 @@ class HttpHandler:
                     query_params[key] = value
                 else:
                     query_params[param] = ''
-
         for endpoint in self.http_config.get('endpoints', []):
             for route, details in endpoint.items():
                 # 1. Check base URL match first
@@ -215,11 +228,18 @@ class HttpHandler:
 
         elif 'ai' in endpoint_config:
             # experimental ai response
-            ai_agent = HttpAI()
             peer_addr = request.client.host
             session_id = peer_addr
-            query_string = str(request.url).split('?', 1)[1] if '?' in str(request.url) else ''
-            result = await ai_agent.make_query("http:"+session_id, query_string)
+
+            # get custom AI prompt from config.yaml
+            # add the request.url.path to the prompt
+            # make the request
+            prompt = endpoint_config['ai'] + "\n" + request.url.path
+
+            result = await self.http_agent.make_query("http:"+session_id, prompt)
+           
+            if result == None:
+                return '', 404
             result = result.replace('```json\n', '').replace('\n```', '') # sometime the AI response is wrapped in ```json
             return result, 200
         
