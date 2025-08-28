@@ -50,7 +50,8 @@ endpoints:
         id: "([0-9]+)('|%27)(.*)" #match digits and SQL injection tentative
       status_code: 200
       # you can use ai to generate the response
-      ai: true
+      ai: |
+        your prompt here...
       headers:
         Content-Type: application/json
 

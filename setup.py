@@ -24,6 +24,12 @@ setup(
     name='trapster',
     version=get_version("trapster/__init__.py"),
     install_requires=requirements,
+    extras_require={
+        'ai': [
+            'openai<1.99.0',
+            'openai-agents>=0.2.5',
+        ],
+    },
     url='https://trapster.cloud/',
     author='0xBallpoint',
     author_email='contact@ballpoint.fr',
