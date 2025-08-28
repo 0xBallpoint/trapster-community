@@ -33,7 +33,7 @@ class ai_agent(Agent):
         custom_ai_prompts: dict[str, str] | None = None,
         temperature: float | None = .8,
     ) -> None:
-        
+        self.memory_path = memory_path
         # Resolve configuration from env if not provided
         model_name = model_name or os.getenv("AI_MODEL")  or "chatgpt-4o-mini"
         api_key = api_key or os.getenv("AI_API_KEY")  or ""
@@ -63,8 +63,10 @@ class ai_agent(Agent):
     def _ensure_session(self, session_id: str) -> SQLiteSession:
         sess = self.sessions.get(session_id)
         if not sess:
-            #sess = SQLiteSession(session_id, "ai_memory.db")
-            sess = SQLiteSession(session_id)
+            if self.memory_path:
+                sess = SQLiteSession(session_id, self.memory_path)
+            else:
+                sess = SQLiteSession(session_id)
             self.sessions[session_id] = sess
         return sess
 

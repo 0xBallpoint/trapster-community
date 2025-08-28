@@ -9,8 +9,7 @@ from agents import (
     SQLiteSession,
 )
 
-
-from trapster.ai.ai_agent import ai_agent
+from trapster.ai.base import ai_agent
 
 def get_initial_prompt(username: str) -> str:
     return (f"""You are a Ubuntu Linux bash shell for a low-privilege user in /home/{username}. 

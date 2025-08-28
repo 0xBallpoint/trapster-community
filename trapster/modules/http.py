@@ -54,8 +54,7 @@ class HttpHandler:
         
         self.env = self.create_jinja_env()
 
-        custom_ai_prompts = self.get_custom_ai_prompts()
-        self.http_agent = HTTPAgent(custom_ai_prompts=custom_ai_prompts)
+        self.http_agent = HTTPAgent()
 
 
     @staticmethod
@@ -231,8 +230,13 @@ class HttpHandler:
             # experimental ai response
             peer_addr = request.client.host
             session_id = peer_addr
-            
-            result = await self.http_agent.make_query("http:"+session_id, request.url.path)
+
+            # get custom AI prompt from config.yaml
+            # add the request.url.path to the prompt
+            # make the request
+            prompt = endpoint_config['ai'] + "\n" + request.url.path
+
+            result = await self.http_agent.make_query("http:"+session_id, prompt)
            
             if result == None:
                 return '', 404
