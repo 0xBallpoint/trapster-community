@@ -2,11 +2,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy requirements file first to leverage cache
-COPY requirements.txt /app/
+# Copy setup files first to leverage cache for dependency installation
+COPY requirements.txt setup.py MANIFEST.in README.md /app/
+COPY trapster/__init__.py /app/trapster/__init__.py
 
-# Install dependencies - this layer will be cached unless requirements.txt changes
-RUN pip install --no-cache-dir -r requirements.txt
+# Install the package with AI features enabled
+# This will install both base requirements and AI extras
+RUN pip install --no-cache-dir .[ai]
 
 # Create configuration directory
 RUN mkdir -p /etc/trapster

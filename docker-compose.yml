@@ -6,5 +6,8 @@ services:
       dockerfile: Dockerfile
     network_mode: "host"
     restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - ./trapster/data/trapster.conf:/etc/trapster/trapster.conf
