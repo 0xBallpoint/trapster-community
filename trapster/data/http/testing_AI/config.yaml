@@ -12,7 +12,14 @@ endpoints:
     - method: GET
       status_code: 200
       # you can use ai to generate the response
-      ai: "You are a API endpoint that give current user information"
+      ai: "Respond with user information"
+      headers:
+        Content-Type: application/json
+  - "/api/v1/computer/(.*)":
+    - method: GET
+      status_code: 200
+      # you can use ai to generate the response
+      ai: "Respond with computer system information"
       headers:
         Content-Type: application/json
 

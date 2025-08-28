@@ -18,13 +18,24 @@ class HttpHandler:
         self.protocol_name = "http"
 
         self.logger = logger
+        self.logger.debug = False
 
         self.NAME = config.get('skin', 'default_apache')
         self.BASIC_AUTH = config.get('basic_auth', False)
         self.USERNAME = config.get('username', None)
         self.PASSWORD = config.get('password', None)
-
         self.data_folder = Path(__file__).parent.parent / "data" / "http"
+    
+    def get_custom_ai_prompts(self):
+        custom_ai_prompts = {}
+        for endpoint in self.http_config.get('endpoints', []):
+            
+            for route, details in endpoint.items():
+                if 'ai' in details[0]:
+                    print(route, details[0]['ai'])
+                    custom_ai_prompts[route] = details[0]['ai']
+        print("custom_ai_prompts", custom_ai_prompts)
+        return custom_ai_prompts
 
     def setup(self):
         try:
@@ -42,6 +53,9 @@ class HttpHandler:
             self.http_config = yaml.safe_load(file)
         
         self.env = self.create_jinja_env()
+
+        custom_ai_prompts = self.get_custom_ai_prompts()
+        self.http_agent = HTTPAgent(custom_ai_prompts=custom_ai_prompts)
 
 
     @staticmethod
@@ -215,15 +229,10 @@ class HttpHandler:
 
         elif 'ai' in endpoint_config:
             # experimental ai response
-            custom_ai_prompt = endpoint_config.get('ai', None)
-
-            http_agent = HTTPAgent(custom_ai_prompt=custom_ai_prompt)
-            
             peer_addr = request.client.host
             session_id = peer_addr
-            query_string = str(request.url).split('?', 1)[1] if '?' in str(request.url) else ''
-
-            result = await http_agent.make_query("http:"+session_id, query_string)
+            
+            result = await self.http_agent.make_query("http:"+session_id, request.url.path)
            
             if result == None:
                 return '', 404

@@ -30,7 +30,7 @@ class ai_agent(Agent):
         memory_path: str | None = None,
         api_key: str | None = None,
         base_url: str | None = None,
-        custom_ai_prompt: str | None = None,
+        custom_ai_prompts: dict[str, str] | None = None,
         temperature: float | None = .8,
     ) -> None:
         
@@ -38,8 +38,7 @@ class ai_agent(Agent):
         model_name = model_name or os.getenv("AI_MODEL")  or "chatgpt-4o-mini"
         api_key = api_key or os.getenv("AI_API_KEY")  or ""
         base_url = base_url or os.getenv("AI_BASE_URL") or "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1"
-        print(model_name, api_key, base_url)
-        self.custom_ai_prompt = custom_ai_prompt
+       
         temperature = temperature or .8
         
         # Shared OpenAI client
@@ -59,10 +58,6 @@ class ai_agent(Agent):
 
     def _get_initial_messages(self):
         return "be a helpful assistant"
-
-    def _get_initial_messages(self) -> list:
-        prompt = self._get_initial_messages()
-        return prompt
 
     # Session helpers
     def _ensure_session(self, session_id: str) -> SQLiteSession:
