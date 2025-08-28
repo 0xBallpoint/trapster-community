@@ -19,7 +19,7 @@ top.location="/login?redir=%2F";
     - method: GET
       status_code: 200
       file: login.html
-
+    
   - "/logincheck":
     - method: GET
       status_code: 302

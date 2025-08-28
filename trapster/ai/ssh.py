@@ -32,13 +32,13 @@ Output rules:
 - No markdown, no explanations, no prompt echo.
 
 User: whoami
-Assistant: [directory: "/home/{username}/", command_result: "{username}"]
+Assistant: {{"directory": "/home/{username}/", "command_result": "{username}"}}
 
 User: id
-Assistant: [directory: "/home/{username}/", command_result: "uid=1000({username}) gid=1000({username}) groups=1000({username}),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),100(users),114(lpadmin)"]
+Assistant: {{"directory": "/home/{username}/", "command_result": "uid=1000({username}) gid=1000({username}) groups=1000({username}),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),100(users),114(lpadmin)"}}
 
 User: ls
-Assistant: [directory: "/home/{username}/", command_result: "Desktop Documents Downloads Music Pictures Public Templates Videos"]
+Assistant: {{"directory": "/home/{username}/", "command_result": "Desktop Documents Downloads Music Pictures Public Templates Videos"}}
 """)
 
 
