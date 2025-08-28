@@ -1,17 +1,17 @@
-name: testing_AI
-description: Testing AI honeypot
+name: demo_ai
+description: Learn how to use AI to create honeypot web servers
 headers:
   X-Frame-Options: SAMEORIGIN
   Content-Security-Policy: frame-ancestors 'self'
   X-Xss-Protection: 1; mode=block
-  Strict-Transport-Security: max-age=15552000
   Cache-Control: max-age=31536000, immutable
 
 endpoints:
   - "/api/v1/user/(.*)":
     - method: GET
       status_code: 200
-      # you can use ai to generate the response
+      # Tell the AI the format of the response, and the content
+      # Here, we want JSON with some user information
       ai: "Respond with JSON containing user information"
       headers:
         Content-Type: application/json
@@ -19,23 +19,15 @@ endpoints:
   - "/api/v1/computer/(.*)":
     - method: GET
       status_code: 200
-      # you can use ai to generate the response
+      # You can use a different prompt for different path
       ai: "Respond with JSON containing computer system information"
-      headers:
-        Content-Type: application/json
-
-  - "/api/v1/order/(.*)":
-    - method: GET
-      status_code: 200
-      # you can use ai to generate the response
-      ai: "Respond with JSON containing order information for an online retail store"
       headers:
         Content-Type: application/json
 
   - "/.(aws|s3|bucket|bucket_name)":
     - method: GET
       status_code: 200
-      # you can use ai to generate the response
+      # You could also create plain text responses with fake config values
       ai: "Respond with the text content of a configuration file containing AWS S3 bucket information"
       headers:
         Content-Type: text/plain
@@ -43,11 +35,20 @@ endpoints:
   - "/admin/":
     - method: GET
       status_code: 200
-      # you can use ai to generate the response
-      ai: "Respond with an admin login page"
+      # Or even create web pages
+      ai: "Respond with an HTML admin login page"
       headers:
-        Content-Type: application/json
+        Content-Type: text/html; charset=utf-8
 
+  - "/":
+    - method: GET
+      status_code: 200
+      # Then, you can mix AI responses for some static web pages
+      content: |
+        <h1>hello, welcome on our API</h1>
+        <p>check it out: <a href='/api/v1/user/1'>here</a></p>
+      headers:
+        Content-Type: text/html; charset=utf-8
 
 default:
   status_code: 404

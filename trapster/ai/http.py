@@ -3,8 +3,7 @@ from __future__ import annotations
 
 from typing import Dict, Any
 from agents import (
-    Runner,
-    SQLiteSession,
+    Runner
 )
 from trapster.ai.base import ai_agent
 
@@ -26,6 +25,7 @@ class HTTPAgent(ai_agent):
             memory_path=memory_path,
             temperature=temperature,
         )
+        
     def _get_initial_prompt(self) -> str:
         return """You are a web server, responding to requests for files, directories, or API requests. 
 The user will give a response format (JSON, text file, html page, etc), and the corresponding requested URL.

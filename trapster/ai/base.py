@@ -8,17 +8,13 @@ from agents import (
     Agent,
     OpenAIChatCompletionsModel,
     Runner,
-    function_tool,
     SQLiteSession,
     set_tracing_disabled,
     ModelSettings,
     ModelSettings
 )
 
-
 from dotenv import load_dotenv
-
-#TODO: remove this
 load_dotenv()
 
 class ai_agent(Agent):
@@ -30,8 +26,7 @@ class ai_agent(Agent):
         memory_path: str | None = None,
         api_key: str | None = None,
         base_url: str | None = None,
-        custom_ai_prompts: dict[str, str] | None = None,
-        temperature: float | None = .8,
+        temperature: float | None,
     ) -> None:
         self.memory_path = memory_path
         # Resolve configuration from env if not provided
@@ -39,7 +34,7 @@ class ai_agent(Agent):
         api_key = api_key or os.getenv("AI_API_KEY")  or ""
         base_url = base_url or os.getenv("AI_BASE_URL") or "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1"
        
-        temperature = temperature or .8
+        temperature = temperature
         
         # Shared OpenAI client
         self.client = AsyncOpenAI(base_url=base_url, api_key=api_key)

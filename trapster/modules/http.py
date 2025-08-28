@@ -26,17 +26,6 @@ class HttpHandler:
         self.PASSWORD = config.get('password', None)
         self.data_folder = Path(__file__).parent.parent / "data" / "http"
     
-    def get_custom_ai_prompts(self):
-        custom_ai_prompts = {}
-        for endpoint in self.http_config.get('endpoints', []):
-            
-            for route, details in endpoint.items():
-                if 'ai' in details[0]:
-                    print(route, details[0]['ai'])
-                    custom_ai_prompts[route] = details[0]['ai']
-        print("custom_ai_prompts", custom_ai_prompts)
-        return custom_ai_prompts
-
     def setup(self):
         try:
             resolved_path = (self.data_folder / self.NAME).resolve()

@@ -48,10 +48,10 @@ Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
     current_directory = "~"
     server_name = "ns" + str(random.randint(100000, 999999))
 
+
     ai_agent = SSHAgent(username=username)
 
     while True:
-
         try:
             process.stdout.write(f'{username}@{server_name}:{current_directory}$ ')
             command = await process.stdin.readline()

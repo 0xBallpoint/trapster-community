@@ -35,23 +35,12 @@ endpoints:
         Content-Type: application/json
 
   # you can use regex to match the path
-  - '/api/v1/user': #match digits 1-10
+  - '/api/v1/user': 
     - method: GET
       query:
-        id: '([0-9]+)' #match digits
+        id: '([0-9]+)' #match digits 1-10 in the URL, like : /api/v1/user?id=1
       status_code: 200
       file: user.j2 # file use jinja2 templating to create dynamic content
-      headers:
-        Content-Type: application/json
-
-  - "/api/v1/user":
-    - method: GET
-      query:
-        id: "([0-9]+)('|%27)(.*)" #match digits and SQL injection tentative
-      status_code: 200
-      # you can use ai to generate the response
-      ai: |
-        your prompt here...
       headers:
         Content-Type: application/json
 
