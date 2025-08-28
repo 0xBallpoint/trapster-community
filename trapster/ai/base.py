@@ -30,9 +30,9 @@ class ai_agent(Agent):
     ) -> None:
         self.memory_path = memory_path
         # Resolve configuration from env if not provided
-        model_name = model_name or os.getenv("AI_MODEL")  or "chatgpt-4o-mini"
-        api_key = api_key or os.getenv("AI_API_KEY")  or ""
-        base_url = base_url or os.getenv("AI_BASE_URL") or "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1"
+        model_name = model_name or os.getenv("AI_MODEL")  or "4o-mini"
+        api_key = api_key or os.getenv("AI_API_KEY")  or os.getenv("OPENAI_API_KEY") or ""
+        base_url = base_url or os.getenv("AI_BASE_URL") or "https://api.openai.com/v1/"
        
         temperature = temperature
         
