@@ -119,7 +119,14 @@ If someone tries to login, you will get a log like this one:
 
 ### AI BETA support
 
-To use AI, you need to set your environnement variables. First, copy the `example.env` file
+To use AI, install the dependencies:
+```bash
+pip install trapster[ai]
+
+# or locally
+python3 -m pip install ".[ai]" 
+```
+Then, you need to set your environnement variables. First, copy the `example.env` file
 ```bash
 cp example.env .env
 ```
