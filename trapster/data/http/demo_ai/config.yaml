@@ -1,0 +1,54 @@
+name: demo_ai
+description: Learn how to use AI to create honeypot web servers
+headers:
+  X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy: frame-ancestors 'self'
+  X-Xss-Protection: 1; mode=block
+  Cache-Control: max-age=31536000, immutable
+
+endpoints:
+  - "/api/v1/user/(.*)":
+    - method: GET
+      status_code: 200
+      # Tell the AI the format of the response, and the content
+      # Here, we want JSON with some user information
+      ai: "Respond with JSON containing user information"
+      headers:
+        Content-Type: application/json
+
+  - "/api/v1/computer/(.*)":
+    - method: GET
+      status_code: 200
+      # You can use a different prompt for different path
+      ai: "Respond with JSON containing computer system information"
+      headers:
+        Content-Type: application/json
+
+  - "/.(aws|s3|bucket|bucket_name)":
+    - method: GET
+      status_code: 200
+      # You could also create plain text responses with fake config values
+      ai: "Respond with the text content of a configuration file containing AWS S3 bucket information"
+      headers:
+        Content-Type: text/plain
+
+  - "/admin/":
+    - method: GET
+      status_code: 200
+      # Or even create web pages
+      ai: "Respond with an HTML admin login page"
+      headers:
+        Content-Type: text/html; charset=utf-8
+
+  - "/":
+    - method: GET
+      status_code: 200
+      # Then, you can mix AI responses for some static web pages
+      content: |
+        <h1>hello, welcome on our API</h1>
+        <p>check it out: <a href='/api/v1/user/1'>here</a></p>
+      headers:
+        Content-Type: text/html; charset=utf-8
+
+default:
+  status_code: 404
