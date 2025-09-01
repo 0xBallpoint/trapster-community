@@ -11,21 +11,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from trapster.modules.base import BaseHoneypot
-from trapster.ai import HTTPAgent
+from trapster.libs.ai.http import HttpAI
 
 class HttpHandler:
     def __init__(self, config, logger):
         self.protocol_name = "http"
 
         self.logger = logger
-        self.logger.debug = False
 
         self.NAME = config.get('skin', 'default_apache')
         self.BASIC_AUTH = config.get('basic_auth', False)
         self.USERNAME = config.get('username', None)
         self.PASSWORD = config.get('password', None)
+        self.server_seed = random.randint(1, 1000000)
         self.data_folder = Path(__file__).parent.parent / "data" / "http"
-    
+
     def setup(self):
         try:
             resolved_path = (self.data_folder / self.NAME).resolve()
@@ -42,9 +42,6 @@ class HttpHandler:
             self.http_config = yaml.safe_load(file)
         
         self.env = self.create_jinja_env()
-
-        self.http_agent = HTTPAgent()
-
 
     @staticmethod
     def parse_query_string(query_string):
@@ -96,7 +93,8 @@ class HttpHandler:
         )
         env.globals.update({
             'random': self.random_filter,
-            'get_current_time': lambda: datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT'),
+            'get_current_time': lambda: datetime.now(timezone.utc).timestamp(),
+            'server_seed': self.server_seed
         })
         env.undefined = Undefined
         return env
@@ -113,6 +111,7 @@ class HttpHandler:
                     query_params[key] = value
                 else:
                     query_params[param] = ''
+
         for endpoint in self.http_config.get('endpoints', []):
             for route, details in endpoint.items():
                 # 1. Check base URL match first
@@ -217,18 +216,11 @@ class HttpHandler:
 
         elif 'ai' in endpoint_config:
             # experimental ai response
+            ai_agent = HttpAI()
             peer_addr = request.client.host
             session_id = peer_addr
-
-            # get custom AI prompt from config.yaml
-            # add the request.url.path to the prompt
-            # make the request
-            prompt = endpoint_config['ai'] + "\n" + request.url.path
-
-            result = await self.http_agent.make_query("http:"+session_id, prompt)
-           
-            if result == None:
-                return '', 404
+            query_string = str(request.url).split('?', 1)[1] if '?' in str(request.url) else ''
+            result = await ai_agent.make_query("http:"+session_id, query_string)
             result = result.replace('```json\n', '').replace('\n```', '') # sometime the AI response is wrapped in ```json
             return result, 200
         
@@ -364,9 +356,12 @@ class HttpHandler:
                     
                     query_direct = self.parse_query_string(form_data)
                     for key, value in query_direct.items():
-                        if key in ['login', 'username','account', 'user%5Blogin%5D', 'j_username']:
-                            all_extra['username'] = value
-                        elif key in ['password', 'credential', 'passwd', 'user%5Bpassword%5D', 'j_password', 'secretkey']:
+                        if key in ['login', 'username', 'account', 'usernamefld', 'user%5Blogin%5D', 'j_username']:
+                            if self.NAME == 'pfsense' and 'usernamefld' in query_direct.keys(): #Account for pfsense having login and usernamefld
+                                all_extra['username'] = query_direct['usernamefld']
+                            else:
+                                all_extra['username'] = value
+                        elif key in ['password', 'credential', 'passwordfld', 'passwd', 'user%5Bpassword%5D', 'j_password', 'secretkey']:
                             all_extra['password'] = value
                     
                     # Handle XML/SOAP data
