@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from trapster.modules.base import BaseHoneypot
-from trapster.libs.ai.http import HttpAI
+from trapster.ai import HTTPAgent
 
 class HttpHandler:
     def __init__(self, config, logger):
@@ -216,7 +216,7 @@ class HttpHandler:
 
         elif 'ai' in endpoint_config:
             # experimental ai response
-            ai_agent = HttpAI()
+            ai_agent = HTTPAgent()
             peer_addr = request.client.host
             session_id = peer_addr
             query_string = str(request.url).split('?', 1)[1] if '?' in str(request.url) else ''
