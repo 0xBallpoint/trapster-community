@@ -4,10 +4,7 @@ import json
 from agents import (
     Runner
 )
-
 from trapster.ai.base import ai_agent
-
-
 class SSHAgent(ai_agent):
     """OpenAI-Agents implementation of an SSH-like shell agent.
 
@@ -20,10 +17,6 @@ class SSHAgent(ai_agent):
     def __init__(
         self,
         *,
-        model_name: str | None = None,
-        api_key: str | None = None,
-        base_url: str | None = None,
-        memory_path: str | None = None,
         temperature: float | None = None,
         # specific variable
         username: str | None = "guest"
@@ -31,12 +24,8 @@ class SSHAgent(ai_agent):
         
         self.username = username 
         super().__init__(
-            model_name=model_name,
             module_name="SSH Agent",
-            api_key=api_key,
-            base_url=base_url,
-            memory_path=memory_path,
-            temperature=temperature,
+            temperature=temperature
         )
    
     def _get_initial_prompt(self) -> str:
