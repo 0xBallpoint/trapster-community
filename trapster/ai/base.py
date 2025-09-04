@@ -1,6 +1,8 @@
 
 from __future__ import annotations
 
+import logging
+from pathlib import Path
 from typing import Dict, Any
 import os
 from openai import AsyncOpenAI
@@ -21,20 +23,21 @@ class ai_agent(Agent):
     def __init__(
         self,
         *,
-        model_name: str | None = None,
         module_name: str | None = "AI Agent",
-        memory_path: str | None = None,
-        api_key: str | None = None,
-        base_url: str | None = None,
         temperature: float | None,
     ) -> None:
-        self.memory_path = memory_path
-        # Resolve configuration from env if not provided
-        model_name = model_name or os.getenv("AI_MODEL")  or "4o-mini"
-        api_key = api_key or os.getenv("AI_API_KEY")  or os.getenv("OPENAI_API_KEY") or ""
-        base_url = base_url or os.getenv("AI_BASE_URL") or "https://api.openai.com/v1/"
-       
+        
+
+        self.memory_enable = os.getenv("AI_MEMORY_ENABLE", "false") == "true"
+        self.memory_path = os.getenv("AI_MEMORY_PATH", str(Path(__file__).parent.parent / "data" / "ai_memory.db"))
+        model_name = os.getenv("AI_MODEL")  or "4o-mini"
+        api_key = os.getenv("AI_API_KEY")  or os.getenv("OPENAI_API_KEY") or ""
+        base_url = os.getenv("AI_BASE_URL") or "https://api.openai.com/v1/"
         temperature = temperature
+
+        if not api_key:
+            logging.error('AI_API_KEY must be set to use AI features')
+            return 
         
         # Shared OpenAI client
         self.client = AsyncOpenAI(base_url=base_url, api_key=api_key)
@@ -56,6 +59,10 @@ class ai_agent(Agent):
 
     # Session helpers
     def _ensure_session(self, session_id: str) -> SQLiteSession:
+        if not self.memory_enable:
+            # if memory is disable
+            return None
+        
         sess = self.sessions.get(session_id)
         if not sess:
             if self.memory_path:

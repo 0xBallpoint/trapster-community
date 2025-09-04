@@ -11,19 +11,11 @@ class HTTPAgent(ai_agent):
     def __init__(
         self,
         *,
-        model_name: str | None = None,
-        api_key: str | None = None,
-        base_url: str | None = None,
-        memory_path: str | None = None,
         temperature: float | None = None,
     ) -> None:
         super().__init__(
-            model_name=model_name,
             module_name="HTTP Agent",
-            api_key=api_key,
-            base_url=base_url,
-            memory_path=memory_path,
-            temperature=temperature,
+            temperature=temperature
         )
         
     def _get_initial_prompt(self) -> str:
