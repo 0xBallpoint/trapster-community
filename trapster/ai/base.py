@@ -29,7 +29,8 @@ class ai_agent(Agent):
         
 
         self.memory_enable = os.getenv("AI_MEMORY_ENABLE", "false") == "true"
-        self.memory_path = os.getenv("AI_MEMORY_PATH", str(Path(__file__).parent.parent / "data" / "ai_memory.db"))
+        memory_file_name = module_name.replace(" ", "") + "_ai_memory.db"
+        self.memory_path = os.getenv("AI_MEMORY_PATH", str(Path(__file__).parent.parent / "data" / memory_file_name))
         model_name = os.getenv("AI_MODEL")  or "4o-mini"
         api_key = os.getenv("AI_API_KEY")  or os.getenv("OPENAI_API_KEY") or ""
         base_url = os.getenv("AI_BASE_URL") or "https://api.openai.com/v1/"
