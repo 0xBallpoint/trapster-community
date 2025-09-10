@@ -145,6 +145,8 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username":username, "password":password})
         # Get the expected password for the username from the users dict
         expected_password = self.config.get('users', {}).get(username)
+        if expected_password is None and len(password) >= 1:
+            return True
         # Compare the provided password with the expected password
         return password == expected_password
 
