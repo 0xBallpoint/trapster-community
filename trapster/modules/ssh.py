@@ -6,7 +6,13 @@ from cryptography.hazmat.backends import default_backend
 
 import asyncio, asyncssh, os, datetime, logging, random
 
-from trapster.ai import SSHAgent
+# Optional AI import - gracefully handle when AI dependencies aren't installed
+try:
+    from trapster.ai import SSHAgent
+    AI_AVAILABLE = True
+except ImportError:
+    SSHAgent = None
+    AI_AVAILABLE = False
 
 logging.getLogger('asyncssh').setLevel(logging.WARNING)
 
@@ -49,7 +55,8 @@ Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
     server_name = "ns" + str(random.randint(100000, 999999))
 
 
-    ai_agent = SSHAgent(username=username)
+    # Initialize AI agent if available
+    ai_agent = SSHAgent(username=username) if AI_AVAILABLE else None
 
     while True:
         try:
@@ -73,8 +80,15 @@ Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
                 process.close()
                 return
             
-            # make query to AI agent
-            result = await ai_agent.make_query(session_id, command)
+            # make query to AI agent or use fallback
+            if ai_agent:
+                result = await ai_agent.make_query(session_id, command)
+            else:
+                # Fallback behavior when AI is not available
+                result = {
+                    'directory': f"/home/{username}/",
+                    'command_result': f"bash: {command.strip()}: command not found"
+                }
 
             # handle result
             result['directory'] = result['directory'] or "/home/guest/"
