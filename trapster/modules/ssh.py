@@ -158,11 +158,13 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
     async def validate_password(self, username: str, password: str) -> bool:
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username":username, "password":password})
         # Get the expected password for the username from the users dict
-        expected_password = self.config.get('users', {}).get(username)
-        if expected_password is None or expected_password == "":
-            return True
+        userlist = self.config.get('users', {})
+        expected_password = userlist.get(username)
         # Compare the provided password with the expected password
-        return password == expected_password
+        if username in userlist and (expected_password is None or expected_password == ""):
+            return True
+        else:
+            return password == expected_password
 
     def public_key_auth_supported(self) -> bool:
         return True
