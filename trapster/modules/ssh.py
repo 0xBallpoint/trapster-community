@@ -80,15 +80,8 @@ Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
                 process.close()
                 return
             
-            # make query to AI agent or use fallback
-            if ai_agent:
-                result = await ai_agent.make_query(session_id, command)
-            else:
-                # Fallback behavior when AI is not available
-                result = {
-                    'directory': f"/home/{username}/",
-                    'command_result': f"bash: {command.strip()}: command not found"
-                }
+            # make query to AI agent
+            result = await ai_agent.make_query(session_id, command)
 
             # handle result
             result['directory'] = result['directory'] or "/home/guest/"
@@ -158,13 +151,9 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
     async def validate_password(self, username: str, password: str) -> bool:
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username":username, "password":password})
         # Get the expected password for the username from the users dict
-        userlist = self.config.get('users', {})
-        expected_password = userlist.get(username)
+        expected_password = self.config.get('users', {}).get(username)
         # Compare the provided password with the expected password
-        if username in userlist and (expected_password is None or expected_password == ""):
-            return True
-        else:
-            return password == expected_password
+        return password == expected_password
 
     def public_key_auth_supported(self) -> bool:
         return True
