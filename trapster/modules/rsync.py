@@ -3,13 +3,10 @@ import os, base64
 
 class RsyncProtocol(BaseProtocol):
 
-    config = {
-        'version': "31.0",
-    }
-
     def __init__(self, config=None):
-        if config:
-            self.config = config
+        self.config = config or {
+            'version': "31.0",
+        }
         self.protocol_name = "rsync"
         self.user = ""
         self.password = ""
@@ -24,7 +21,7 @@ class RsyncProtocol(BaseProtocol):
         self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
 
         if data.startswith(b"@RSYNCD:"):
-            greeting = f"@RSYNCD: {self.config['version']}"
+            greeting = f"@RSYNCD: {self.config.get('version', '31.0')}"
             self.transport.write(greeting.encode() + b"\n")
             return
 

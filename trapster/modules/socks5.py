@@ -7,8 +7,7 @@ class Socks5Protocol(BaseProtocol):
     METHOD = b'\x02' # USERNAME/PASSWORD
        
     def __init__(self, config=None):
-        if config:
-            self.config = config
+        self.config = config or {}
         self.protocol_name = "socks5"
 
 #    def connection_made(self, transport):

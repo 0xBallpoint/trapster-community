@@ -117,19 +117,15 @@ Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
             return
 
 class SshProtocol(asyncssh.SSHServer, BaseProtocol):
-    config = {
-        'version': 'SSH-2.0-OpenSSH_5.3',
-        'banner': '',
-        'users': {
-            'guest': '123456'
-        }
-    }
-
     def __init__(self, config=None):
         self.protocol_name = "ssh"
-
-        if config:
-            self.config = config
+        self.config = config or {
+            'version': 'SSH-2.0-OpenSSH_5.3',
+            'banner': '',
+            'users': {
+                'guest': '123456'
+            }
+        }
 
     def connection_made(self, transport: asyncssh.SSHServerConnection) -> None:
         self.transport = transport

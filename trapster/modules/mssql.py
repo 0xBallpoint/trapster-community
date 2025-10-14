@@ -1,21 +1,25 @@
 from trapster.modules.base import BaseProtocol, BaseHoneypot
 
 class MssqlProtocol(BaseProtocol):
+
     def __init__(self, config=None):
         self.protocol_name = "mssql"
-        self.config = config or {}
+        self.config = config or {
+            "version": "2012",
+            "hostname": "SQL01",
+        }
         
         self.versions = {
             "2008": "0A000000",  # SQL Server 2008
-            "2012": "11000000",  # SQL Server 2012
-            "2014": "12000000",  # SQL Server 2014
-            "2016": "13000000",  # SQL Server 2016
-            "2017": "14000000",  # SQL Server 2017
-            "2019": "15000000",  # SQL Server 2019
-            "2022": "16000000",  # SQL Server 2022
+            "2012": "0B000000",  # SQL Server 2012
+            "2014": "0C000000",  # SQL Server 2014
+            "2016": "0D000000",  # SQL Server 2016
+            "2017": "0E000000",  # SQL Server 2017
+            "2019": "0F000000",  # SQL Server 2019
+            "2022": "10000000",  # SQL Server 2022
         }
-        self.version = self.versions.get(self.config.get("version", "2012"), "11000000")
-        self.hostname = self.config.get("hostname", "server-01")
+        self.version = self.versions.get(self.config.get("version", "2012"), "0B000000")
+        self.hostname = self.config.get("hostname", "SQL01")
 
     def connection_made(self, transport):
         self.transport = transport
@@ -24,12 +28,28 @@ class MssqlProtocol(BaseProtocol):
     def data_received(self, data):
         self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
         
-        if data[0] == 0x12: #
+        if len(data) < 1:
+            self.transport.close()
+            return
+        
+        packet_type = data[0]
+        
+        if packet_type == 0x12:  # PRELOGIN
             self.pre_login(data)
-        elif data[0] == 0x10:
+        elif packet_type == 0x10:  # LOGIN7
             self.login(data)
+        elif packet_type == 0x16:  # TLS/SSL handshake - we don't support encryption
+            # Close immediately - we already indicated ENCRYPT_NOT_SUP
+            self.transport.close()
+        elif packet_type == 0x80:  # SQL Browser packet
+            # Close - not SQL Browser service
+            self.transport.close()
+        else:
+            # Unknown packet type
+            self.transport.close()
 
     def pre_login(self, data):
+        # PRELOGIN response
         self.transport.write(
             bytes.fromhex(
                 "0401002500000100000015000601001b000102"
@@ -38,11 +58,18 @@ class MssqlProtocol(BaseProtocol):
         )
 
     def login(self, data):
-        credentials = self.extract_credentials(data)
-        self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra=credentials)
-        
-        auth_response = self.generate_login_error("Login failed for user '" + credentials['username'] + "'.", 18456)
-        self.transport.write(auth_response)
+        try:
+            credentials = self.extract_credentials(data)
+            self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra=credentials)
+            
+            auth_response = self.generate_login_error("Login failed for user '" + credentials['username'] + "'.", 18456)
+            self.transport.write(auth_response)
+        except Exception as e:
+            # If extraction fails, just log the raw data
+            self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
+        finally:
+            # Always close connection after login attempt
+            self.transport.close()
 
     def decrypt_mssql_password(self, encrypted):
         # The decryption is done with a simple XOR and nibble swap
@@ -98,9 +125,16 @@ class MssqlProtocol(BaseProtocol):
         return header + packet_data
 
 class MssqlHoneypot(BaseHoneypot):
-    def __init__(self, config, logger, bindaddr):
+    def __init__(self, config, logger, bindaddr='0.0.0.0'):
         super().__init__(config, logger, bindaddr)
-        self.handler = lambda: MssqlProtocol(config=config)
+        
+        def protocol_factory():
+            protocol = MssqlProtocol(config=config)
+            protocol.logger = logger
+            protocol.config = config
+            protocol.config['host'] = bindaddr
+            return protocol
+        
+        self.handler = protocol_factory
         self.handler.logger = logger
         self.handler.config = config
-

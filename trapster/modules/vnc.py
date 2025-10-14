@@ -14,13 +14,10 @@ class VncProtocol(BaseProtocol):
         "RFB_38" : b'RFB 003.008\n',
     }
     
-    config = {
-        "version": "RFB_38"
-    }
-
     def __init__(self, config=None):
-        if config:
-            self.config = config
+        self.config = config or {
+            "version": "RFB_38"
+        }
         self.protocol_name = "vnc"
         self.challenge = None
 
@@ -29,14 +26,14 @@ class VncProtocol(BaseProtocol):
         
         self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
         
-        self.transport.write(self.versions[self.config['version']])
+        self.transport.write(self.versions[self.config.get('version', 'RFB_38')])
         self.state = 'wait_pversion'
         
     def data_received(self, data):
         self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
 
         if self.state == 'wait_pversion':
-            if data == self.versions[self.config['version']]:
+            if data == self.versions[self.config.get('version', 'RFB_38')]:
                 # sending security types
                 self.transport.write(binascii.unhexlify('020217'))
                 self.state = 2

@@ -2,17 +2,14 @@ from trapster.modules.base import BaseProtocol, BaseHoneypot
 
 class FtpProtocol(BaseProtocol):
 
-    config = {
-        'banner': "Microsoft FTP Service"
-       # 'passwords' : 
-       #     {'root': 'vpRcL9QNUFj093yMp',
-       #     'user': 'GzUODJoYqwg5jjhXG',
-       # },
-    }
-
     def __init__(self, config=None):
-        if config:
-            self.config = config
+        self.config = config or {
+            'banner': "Microsoft FTP Service"
+            # 'passwords' : 
+            #     {'root': 'vpRcL9QNUFj093yMp',
+            #     'user': 'GzUODJoYqwg5jjhXG',
+            # },
+        }
         self.protocol_name = "ftp"
         self.user = ""
         self.password = ""

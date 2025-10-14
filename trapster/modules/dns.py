@@ -27,15 +27,11 @@ class EchoClientProtocol(asyncio.DatagramProtocol):
 
 class DnsUdpProtocol(BaseProtocol):
 
-    config = {
-        'dns1': "127.0.0.1"
-    }
-
     def __init__(self, config=None):
         self.protocol_name = "dns"
-
-        if config:
-            self.config = config
+        self.config = config or {
+            'target_dns': "127.0.0.1"
+        }
 
     def connection_made(self, transport) -> None:
         self.transport = transport
@@ -60,7 +56,7 @@ class DnsUdpProtocol(BaseProtocol):
 
         transport, protocol = await self.loop.create_datagram_endpoint(
             lambda: EchoClientProtocol(data, on_con_lost),
-            remote_addr=(self.config['dns1'], 53))
+            remote_addr=(self.config.get('target_dns', '127.0.0.1'), 53))
 
         try:
             # send back data from the legit dns server
@@ -81,16 +77,27 @@ class DnsTcpProtocol(BaseProtocol):
 
 class DnsHoneypot(BaseHoneypot):
 
-    def __init__(self, config, logger, bindaddr, proxy_dns_ip):
+    def __init__(self, config, logger, bindaddr):
         super().__init__(config, logger, bindaddr)
         # binaddr 0.0.0.0 is not accepted because real dns server is running on 127.0.0.1
         # so it mused be set in the conf file
-        self.handler = lambda: DnsTcpProtocol(config=config)
+        def tcp_factory():
+            protocol = DnsTcpProtocol(config=config)
+            protocol.logger = logger
+            protocol.config = config
+            return protocol
+        
+        self.handler = tcp_factory
         self.handler.logger = logger
         self.handler.config = config
 
-        self.handler_udp = DnsUdpProtocol
-        self.handler_udp.config['dns1'] = proxy_dns_ip
+        def udp_factory():
+            protocol = DnsUdpProtocol(config=config)
+            protocol.logger = logger
+            protocol.config = config
+            return protocol
+        
+        self.handler_udp = udp_factory
         self.udp_transport = None
         self.udp_protocol = None
 
@@ -98,7 +105,7 @@ class DnsHoneypot(BaseHoneypot):
         loop = asyncio.get_running_loop()
 
         # Create UDP server
-        self.udp_transport, self.udp_protocol = await loop.create_datagram_endpoint(lambda: self.handler_udp(), 
+        self.udp_transport, self.udp_protocol = await loop.create_datagram_endpoint(self.handler_udp, 
                                     local_addr=(self.bindaddr, self.port))
         
         # Create TCP server

@@ -8,18 +8,14 @@ from datetime import datetime, timezone
 
 class LdapProtocol(BaseProtocol):
 
-    config = {
-        "server" : "server-01",
+    def __init__(self, config=None):
+        self.protocol_name = "ldap"
+        self.config = config or {
+        "server" : "DC01",
         "domain" : "microsoft",
         "tld" : "intra",
         "level": "WinThreshold"
     }
-
-    def __init__(self, config=None):
-        self.protocol_name = "ldap"
-
-        if config:
-            self.config = config
         
         self.functionality_level = self.get_functionality_level(self.config.get('level', 'WinThreshold'))
         

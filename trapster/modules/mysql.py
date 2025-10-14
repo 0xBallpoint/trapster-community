@@ -11,16 +11,12 @@ class MysqlProtocol(BaseProtocol):
     # auth_plugin can be: 
     # "mysql_native_password" : SHA-1 of password
     # "mysql_clear_password" : clear password
-    
-
-    config = {
-        "version": "5.6.4-m7-log",
-        "auth_plugin": "mysql_native_password",
-    }
 
     def __init__(self, config=None):
-        if config:
-            self.config = config
+        self.config = config or {
+            "version": "5.6.4-m7-log",
+            "auth_plugin": "mysql_native_password",
+        }
         self.protocol_name = "mysql"
         self.protocol_version = b'\x0a'
 
@@ -80,7 +76,7 @@ class MysqlProtocol(BaseProtocol):
         # https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html
         
         protocol_version = self.protocol_version
-        server_version = (self.config['version'] + '\x00').encode()
+        server_version = (self.config.get('version', '5.6.4-m7-log') + '\x00').encode()
         connection_id = os.urandom(4) # b'\x56\x0a\x00\x00'
         auth_plugin_data_part_1 = os.urandom(8)
         filler_1 = b'\x00'
@@ -91,7 +87,7 @@ class MysqlProtocol(BaseProtocol):
         auth_plugin_data_len = bytes([21]) # 20 bytes random data + \x00 for mysql_native_password
         zeros = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
         auth_plugin_data_part_2 = os.urandom(12) + b'\x00'
-        auth_plugin = (self.config['auth_plugin'] + '\x00').encode()
+        auth_plugin = (self.config('auth_plugin', 'mysql_native_password') + '\x00').encode()
 
         packet = protocol_version + server_version + connection_id  + auth_plugin_data_part_1 + filler_1 + \
             capability_flag_1 + character_set + status_flags + capability_flag_2 + \
@@ -134,7 +130,6 @@ class MysqlProtocol(BaseProtocol):
 
 
 class MysqlHoneypot(BaseHoneypot):
-
     def __init__(self, config, logger, bindaddr='0.0.0.0'):
         super().__init__(config, logger, bindaddr)
         self.handler = lambda: MysqlProtocol(config=config)

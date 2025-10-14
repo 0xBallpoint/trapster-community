@@ -5,12 +5,8 @@ from struct import unpack
 class PostgresProtocol(BaseProtocol):
     '''based on https://github.com/qeeqbox/honeypots/blob/main/honeypots/postgres_server.py'''
     
-    config = {
-    }
-
     def __init__(self, config=None):
-        if config:
-            self.config = config
+        self.config = config or {} 
         self.protocol_name = "postgres"
 
     def connection_made(self, transport):

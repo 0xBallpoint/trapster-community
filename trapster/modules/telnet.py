@@ -28,8 +28,7 @@ class TelnetProtocol(BaseProtocol):
     }
 
     def __init__(self, config=None):
-        if config:
-            self.config = config
+        self.config = config or {}
         self.protocol_name = "telnet"
         self.username = b''
         self.password = b''
@@ -39,7 +38,7 @@ class TelnetProtocol(BaseProtocol):
         self.transport = transport
         self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
 
-        self.transport.write(self.versions[self.config['version']])
+        self.transport.write(self.versions[self.config.get('version', 'D-Link DSL router')])
 
     def data_received(self, data):
 

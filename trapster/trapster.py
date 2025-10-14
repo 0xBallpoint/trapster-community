@@ -13,6 +13,10 @@ class TrapsterManager:
         self.config = config
 
     def get_ip(self, config_interface):
+        if not config_interface:
+            logging.info("No interface specified, binding to all interfaces (0.0.0.0)")
+            return "0.0.0.0"
+            
         for interface, addrs in psutil.net_if_addrs().items():
             if interface == config_interface:
                 for addr in addrs:
@@ -21,7 +25,7 @@ class TrapsterManager:
                         return addr.address
         
         logging.warning(f"Interface {config_interface} does not exist, using 0.0.0.0")
-        return
+        return "0.0.0.0"
 
     async def start(self):    
         ip = self.get_ip(self.config.get('interface', None))
@@ -37,7 +41,7 @@ class TrapsterManager:
                 elif service_type == 'ssh':
                     server = SshHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'dns':            
-                    server = DnsHoneypot(service_config, self.logger, bindaddr=ip, proxy_dns_ip="127.0.0.1")
+                    server = DnsHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'vnc':
                     server = VncHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'mysql':

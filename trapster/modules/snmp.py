@@ -10,8 +10,7 @@ class SnmpUdpProtocol(BaseProtocol):
     TODO: could be improve to respond to messages with custom data
     '''
     def __init__(self, config=None):
-        if config:
-            self.config = config
+        self.config = config or {}
         self.protocol_name = "snmp"
     
     def connection_made(self, transport) -> None:

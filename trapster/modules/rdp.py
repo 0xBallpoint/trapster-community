@@ -5,8 +5,7 @@ import re
 class RdpProtocol(BaseProtocol):
 
     def __init__(self, config=None):
-        if config:
-            self.config = config
+        self.config = config or {}
         self.protocol_name = "rdp"
         self.initial_connection = True
 
