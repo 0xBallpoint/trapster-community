@@ -6,7 +6,7 @@
 
 
 
-<h2 align="center" >Trapster Community </h2>
+<h1 align="center" >Trapster Community </h1>
 <p align="center"><a href="https://trapster.cloud/">🌐 Website</a> · <a href="https://docs.trapster.cloud/">📚 Documentation</a> · <a href="https://discord.gg/nNJv8Hj5EE">💬 Discord</a></p>
 <br />
 
