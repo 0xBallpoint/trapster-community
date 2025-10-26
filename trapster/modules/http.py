@@ -485,14 +485,17 @@ class HttpHoneypot(BaseHoneypot):
             await self.server.serve()
         except asyncio.CancelledError:
             self.server.should_exit = True
-            await self.server.shutdown()
+            # Only call shutdown if the server was actually started
+            if hasattr(self.server, 'servers'):
+                await self.server.shutdown()
             raise
 
     async def stop(self):
         if self.server:
             # Signal the server to shut down
             self.server.should_exit = True
-            # Wait for the server to shut down
-            await self.server.shutdown()
+            # Only call shutdown if the server was actually started
+            if hasattr(self.server, 'servers'):
+                await self.server.shutdown()
         
         return await super().stop()

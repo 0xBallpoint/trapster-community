@@ -87,7 +87,7 @@ class MysqlProtocol(BaseProtocol):
         auth_plugin_data_len = bytes([21]) # 20 bytes random data + \x00 for mysql_native_password
         zeros = b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
         auth_plugin_data_part_2 = os.urandom(12) + b'\x00'
-        auth_plugin = (self.config('auth_plugin', 'mysql_native_password') + '\x00').encode()
+        auth_plugin = (self.config.get('auth_plugin', 'mysql_native_password') + '\x00').encode()
 
         packet = protocol_version + server_version + connection_id  + auth_plugin_data_part_1 + filler_1 + \
             capability_flag_1 + character_set + status_flags + capability_flag_2 + \
