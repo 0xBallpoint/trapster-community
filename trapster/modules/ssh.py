@@ -1,7 +1,8 @@
 from trapster.modules.base import BaseProtocol, BaseHoneypot
 
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import rsa, ed25519
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.backends import default_backend
 
 import asyncio, asyncssh, os, datetime, logging, random
@@ -120,7 +121,7 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
     def __init__(self, config=None):
         self.protocol_name = "ssh"
         self.config = config or {
-            'version': 'SSH-2.0-OpenSSH_5.3',
+            'version': 'SSH-2.0-OpenSSH_9.2p1 Debian-2+deb12u7',
             'banner': '',
             'users': {
                 'guest': '123456'
@@ -197,8 +198,15 @@ class SshHoneypot(BaseHoneypot):
 
     async def _start_server(self):
         try:
+            # Get all available host keys
+            host_keys = self.get_host_keys()
+            
+            if not host_keys:
+                logging.error("No SSH host keys found")
+                return False
+            
             self.server = await asyncssh.create_server(SshProtocol, self.bindaddr, self.port,
-                                 server_host_keys=[os.path.dirname(__file__)+"/../data/ssh/ssh_host_key"],
+                                 server_host_keys=host_keys,
                                  process_factory=handle_client
                                  )
             await self.server.serve_forever()
@@ -209,33 +217,91 @@ class SshHoneypot(BaseHoneypot):
             return False
 
     def generate_keys(self):
-        # Generate an RSA private key
-        private_key = rsa.generate_private_key(
-            public_exponent=65537,
-            key_size=2048,
-            backend=default_backend()
-        )
+        """Generate multiple host key types: RSA, ECDSA, and ED25519"""
+        ssh_dir = os.path.dirname(__file__) + "/../data/ssh"
+        
+        if not os.path.exists(ssh_dir):
+            os.makedirs(ssh_dir)
 
-        # Serialize the private key in OpenSSH format
-        private_key_openssh = private_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.OpenSSH,
-            encryption_algorithm=serialization.NoEncryption()
-        )
+        # Define key configurations
+        key_configs = [
+            {
+                'type': 'rsa',
+                'filename': 'ssh_host_rsa_key',
+                'generator': lambda: rsa.generate_private_key(
+                    public_exponent=65537,
+                    key_size=3072,
+                    backend=default_backend()
+                )
+            },
+            {
+                'type': 'ecdsa',
+                'filename': 'ssh_host_ecdsa_key',
+                'generator': lambda: ec.generate_private_key(
+                    curve=ec.SECP256R1(),
+                    backend=default_backend()
+                )
+            },
+            {
+                'type': 'ed25519',
+                'filename': 'ssh_host_ed25519_key',
+                'generator': lambda: ed25519.Ed25519PrivateKey.generate()
+            }
+        ]
 
-        # Serialize the public key in OpenSSH format
-        public_key_openssh = private_key.public_key().public_bytes(
-            encoding=serialization.Encoding.OpenSSH,
-            format=serialization.PublicFormat.OpenSSH
-        )
+        for config in key_configs:
+            private_key_path = os.path.join(ssh_dir, config['filename'])
+            public_key_path = os.path.join(ssh_dir, config['filename'] + '.pub')
+            
+            # Skip if keys already exist
+            if os.path.exists(private_key_path) and os.path.exists(public_key_path):
+                continue
+                
+            try:
+                # Generate the private key
+                private_key = config['generator']()
+                
+                # Serialize the private key in OpenSSH format
+                private_key_openssh = private_key.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.OpenSSH,
+                    encryption_algorithm=serialization.NoEncryption()
+                )
 
-        if not os.path.exists(os.path.dirname(__file__)+"/../data/ssh"):
-            os.makedirs(os.path.dirname(__file__)+"/../data/ssh")
+                # Serialize the public key in OpenSSH format
+                public_key_openssh = private_key.public_key().public_bytes(
+                    encoding=serialization.Encoding.OpenSSH,
+                    format=serialization.PublicFormat.OpenSSH
+                )
 
-        # Save the private and public keys in OpenSSH format
-        with open(os.path.dirname(__file__)+"/../data/ssh/ssh_host_key", 'w+') as private:
-            private.write(private_key_openssh.decode('utf-8'))
+                # Save the private and public keys
+                with open(private_key_path, 'w') as private_file:
+                    private_file.write(private_key_openssh.decode('utf-8'))
 
-        with open(os.path.dirname(__file__)+"/../data/ssh/ssh_host_key.pub", 'w+') as public:
-            public.write(public_key_openssh.decode('utf-8'))
+                with open(public_key_path, 'w') as public_file:
+                    public_file.write(public_key_openssh.decode('utf-8'))
+                    
+            except Exception as e:
+                logging.warning(f"Failed to generate {config['type']} key: {e}")
+                continue
+
+    def get_host_keys(self):
+        """Get all available host key files"""
+        ssh_dir = os.path.dirname(__file__) + "/../data/ssh"
+        host_keys = []
+        
+        # List of key types to look for
+        key_types = ['rsa', 'ecdsa', 'ed25519']
+        
+        for key_type in key_types:
+            key_path = os.path.join(ssh_dir, f'ssh_host_{key_type}_key')
+            if os.path.exists(key_path):
+                host_keys.append(key_path)
+        
+        # Fallback to legacy key if no new keys exist
+        legacy_key_path = os.path.join(ssh_dir, 'ssh_host_key')
+        if not host_keys and os.path.exists(legacy_key_path):
+            host_keys.append(legacy_key_path)
+            
+        return host_keys
     
