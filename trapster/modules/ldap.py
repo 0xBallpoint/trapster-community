@@ -11,11 +11,11 @@ class LdapProtocol(BaseProtocol):
     def __init__(self, config=None):
         self.protocol_name = "ldap"
         self.config = config or {
-        "server" : "DC01",
-        "domain" : "microsoft",
-        "tld" : "intra",
-        "level": "WinThreshold"
-    }
+            "server" : "DC01",
+            "domain" : "microsoft",
+            "tld" : "intra",
+            "level": "WinThreshold"
+        }
         
         self.functionality_level = self.get_functionality_level(self.config.get('level', 'WinThreshold'))
         

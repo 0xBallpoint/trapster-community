@@ -124,7 +124,6 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
             'version': 'SSH-2.0-OpenSSH_9.2p1 Debian-2+deb12u7',
             'banner': '',
             'users': {
-                'guest': '123456'
             }
         }
 
@@ -174,7 +173,7 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
     # from https://asyncssh.readthedocs.io/en/latest/_modules/asyncssh/connection.html
     def send_version(self) -> None:
         """Start the SSH handshake"""
-        version = self.config.get('version', 'SSH-2.0-OpenSSH_5.3').encode()
+        version = self.config.get('version', 'SSH-2.0-OpenSSH_9.2p1 Debian-2+deb12u7').encode()
     
         if self.transport.is_client():
             self.transport._client_version = version
@@ -190,7 +189,7 @@ class SshHoneypot(BaseHoneypot):
 
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
-        self.handler = SshProtocol
+        self.handler = lambda: SshProtocol(config=config)
         self.handler.logger = logger
         self.handler.config = config
 
@@ -205,7 +204,7 @@ class SshHoneypot(BaseHoneypot):
                 logging.error("No SSH host keys found")
                 return False
             
-            self.server = await asyncssh.create_server(SshProtocol, self.bindaddr, self.port,
+            self.server = await asyncssh.create_server(self.handler, self.bindaddr, self.port,
                                  server_host_keys=host_keys,
                                  process_factory=handle_client
                                  )
