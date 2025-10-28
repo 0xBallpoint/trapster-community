@@ -163,6 +163,7 @@ cython_debug/
 .vscode/
 
 ###############
-ssh_host_key*
+# Trapster specific
+ssh_host_*
 *.pem
 *.db
