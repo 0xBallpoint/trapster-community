@@ -387,7 +387,7 @@ class HttpHandler:
                         if '<userName>' in form_data and '</userName>' in form_data:
                             username_start = form_data.find('<userName>') + len('<userName>')
                             username_end = form_data.find('</userName>')
-                            all_extra['login'] = form_data[username_start:username_end]
+                            all_extra['username'] = form_data[username_start:username_end]
                             
                         if '<password>' in form_data and '</password>' in form_data:
                             password_start = form_data.find('<password>') + len('<password>')
