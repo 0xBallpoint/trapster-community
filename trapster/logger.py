@@ -159,10 +159,10 @@ def set_logger(config):
         else:
             raise TypeError
         
-        logging.info(f"[+] using logger type: {logger_name} ")
+        logging.info(f"Using logger type: {logger_name} ")
         
     except: #Default to JsonLogger
-        logging.info(f"[+] defaulting to logger type: JsonLogger")
+        logging.info(f"Defaulting to logger type: JsonLogger")
         return JsonLogger(node_id)
     
     return logger

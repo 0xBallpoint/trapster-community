@@ -12,9 +12,18 @@ class MysqlProtocol(BaseProtocol):
     # "mysql_native_password" : SHA-1 of password
     # "mysql_clear_password" : clear password
 
+    # some versions examples:
+    #     "5.6.4-m7-log",       # MySQL 5.6 (legacy, backward compat)
+    #     "5.7.44",              # MySQL 5.7
+    #     "8.0.40",              # MySQL 8.0
+    #     "8.4.3",               # MySQL 8.4
+    #     "10.6.20-MariaDB",     # MariaDB 10.6
+    #     "10.11.10-MariaDB",    # MariaDB 10.11
+    #     "11.4.4-MariaDB",      # MariaDB 11.4
+
     def __init__(self, config=None):
         self.config = config or {
-            "version": "5.6.4-m7-log",
+            "version": "8.4.3",
             "auth_plugin": "mysql_native_password",
         }
         self.protocol_name = "mysql"
@@ -63,11 +72,11 @@ class MysqlProtocol(BaseProtocol):
 
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={'username':username, 'password':password, 'details':extra_details})
 
-        local_ip, _ = self.transport.get_extra_info('sockname')
+        peer_ip, _ = self.transport.get_extra_info('peername')
 
         self.transport.write(
             self.build_packet(
-                self.auth_failed("Access denied for user '{}'@'{}' (using password: {})".format(username, local_ip , using_password)),
+                self.auth_failed("Access denied for user '{}'@'{}' (using password: {})".format(username, peer_ip, using_password)),
                 2
             )
         )
@@ -76,7 +85,7 @@ class MysqlProtocol(BaseProtocol):
         # https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_connection_phase_packets_protocol_handshake_v10.html
         
         protocol_version = self.protocol_version
-        server_version = (self.config.get('version', '5.6.4-m7-log') + '\x00').encode()
+        server_version = (self.config.get('version', '8.4.3') + '\x00').encode()
         connection_id = os.urandom(4) # b'\x56\x0a\x00\x00'
         auth_plugin_data_part_1 = os.urandom(8)
         filler_1 = b'\x00'

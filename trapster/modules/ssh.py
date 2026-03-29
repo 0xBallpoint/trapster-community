@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, ed25519
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.backends import default_backend
 
-import asyncio, asyncssh, os, datetime, logging, random
+import asyncio, asyncssh, os, datetime, logging, random, ipaddress
 
 # Optional AI import - gracefully handle when AI dependencies aren't installed
 try:
@@ -17,36 +17,53 @@ except ImportError:
 
 logging.getLogger('asyncssh').setLevel(logging.WARNING)
 
-async def handle_client(process: asyncssh.SSHServerProcess) -> None:    
-    welcome_message = '''Welcome to Ubuntu 20.10 (GNU/Linux 5.8.0-63-generic x86_64)
+def _random_private_ip():
+    """Return a random RFC-1918 address."""
+    prefix = random.choice([(10, 0, 0, 0, 8), (192, 168, 0, 0, 16), (172, 16, 0, 0, 12)])
+    base = ipaddress.IPv4Network(f"{prefix[0]}.{prefix[1]}.{prefix[2]}.{prefix[3]}/{prefix[4]}")
+    return str(ipaddress.IPv4Address(
+        int(base.network_address) + random.randint(1, int(base.num_addresses) - 2)
+    ))
+
+def _random_public_ip():
+    while True:
+        ip = ipaddress.IPv4Address(random.randint(0x01000000, 0xDFFFFFFF))
+        if not ip.is_private and not ip.is_loopback and not ip.is_multicast:
+            return str(ip)
+
+async def handle_client(process: asyncssh.SSHServerProcess) -> None:
+    now      = datetime.datetime.now(datetime.UTC)
+    # Last login: random time between 1 hour and 14 days ago
+    last_dt  = now - datetime.timedelta(seconds=random.randint(3600, 3600 * 24 * 14))
+    updates  = random.randint(0, 8)
+    sec_upd  = random.randint(0, updates)
+    load     = round(random.uniform(0.05, 2.5), 2)
+    mem      = random.randint(8, 72)
+    swap     = random.randint(0, 15)
+    procs    = random.randint(110, 280)
+    iface_ip = _random_private_ip()
+    last_ip  = _random_public_ip()
+
+    welcome_message = f'''Welcome to Ubuntu 22.04.4 LTS (GNU/Linux 6.5.0-28-generic x86_64)
 
  * Documentation:  https://help.ubuntu.com
  * Management:     https://landscape.canonical.com
- * Support:        https://ubuntu.com/advantage
+ * Support:        https://ubuntu.com/pro
 
-  System information as of {time}
+  System information as of {now.strftime('%a %b %d %H:%M:%S UTC %Y')}
 
-  System load:  1.11              Processes:             132
-  Usage of /:   50.7% of 1.79TB   Users logged in:       1
-  Memory usage: 10%               IPv4 address for eno0: 151.80.38.22
-  Swap usage:   6%                IPv6 address for eno0: 2001:41d0:e:b16::1
+  System load:  {load:<16}  Processes:             {procs}
+  Usage of /:   {random.randint(20,80)}.{random.randint(0,9)}% of {random.randint(1,8)}.{random.randint(0,9)}TB   Users logged in:       {random.randint(0,3)}
+  Memory usage: {mem}%               IPv4 address for eth0: {iface_ip}
+  Swap usage:   {swap}%
 
- * Super-optimized for small spaces - read how we shrank the memory
-   footprint of MicroK8s to make it the smallest full K8s around.
-
-   https://ubuntu.com/blog/microk8s-memory-optimisation
-
-0 updates can be installed immediately.
-0 of these updates are security updates.
-
-Failed to connect to https://changelogs.ubuntu.com/meta-release. Check your Internet connection or proxy settings
+{updates} updates can be installed immediately.
+{sec_upd} of these updates are security updates.
 
 
-Last login: Wed Jun  8 22:06:15 2022 from 188.64.246.56
+Last login: {last_dt.strftime('%a %b %d %H:%M:%S %Y')} from {last_ip}
 '''
-
-    now = datetime.datetime.now(datetime.UTC)
-    process.stdout.write(welcome_message.format(time=now.strftime('%a %b  %d %H:%M:%S UTC %Y')))
+    process.stdout.write(welcome_message)
 
     # some variables
     username = process.get_extra_info('username')

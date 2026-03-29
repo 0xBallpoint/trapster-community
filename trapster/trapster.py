@@ -30,8 +30,11 @@ class TrapsterManager:
     async def start(self):    
         ip = self.get_ip(self.config.get('interface', None))
 
+        global_vars = {k: self.config[k] for k in ('hostname', 'domain') if k in self.config}
+
         for service_type in self.config['services']:
             for service_config in self.config['services'][service_type]:
+                service_config = {**global_vars, **service_config}
                 if service_type == 'ftp':
                     server = FtpHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'http':
@@ -52,6 +55,8 @@ class TrapsterManager:
                     server = PostgresHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'ldap':
                     server = LdapHoneypot(service_config, self.logger, bindaddr=ip)
+                elif service_type == 'ldaps':
+                    server = LdapsHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'rdp':
                     server = RdpHoneypot(service_config, self.logger, bindaddr=ip)
                 elif service_type == 'telnet':
@@ -95,16 +100,20 @@ def load_config(config_path):
         return json.load(f)
     
 def main():
-    # set logging level to INFO
-    logging.basicConfig(level=logging.INFO)
-    
     parser = argparse.ArgumentParser(description="Trapster Community honeypot.")
     parser.add_argument('-i', '--interfaces', action='store_true', help='Show list of interfaces and their corresponding IPs.')
     parser.add_argument('-c', '--config', type=str, help='Specify the config file to use.')
     parser.add_argument('-s', '--show-config', action='store_true', help='Show the config file currently in use.')
     parser.add_argument('-v', '--version', action='store_true', help='Print version')
+    parser.add_argument('-d', '--debug', action='store_true', help='Enable debug mode')
     args = parser.parse_args()
-    
+
+    # set logging level to INFO by default
+    # basicConfig is a no-op if handlers are already set (e.g. from logger.py import),
+    # so we set the level directly on the root logger to ensure -d takes effect.
+    logging.getLogger().setLevel(logging.DEBUG if args.debug else logging.INFO)
+    logging.debug("[x] Debug mode enabled")
+
     if args.version:
         logging.info(__version__)
         return
