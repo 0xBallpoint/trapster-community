@@ -14,7 +14,7 @@ class RsyncProtocol(BaseProtocol):
         self.password = ""
         self.state = "greeting" # can be greeting or startup
         self.expected_auth = False
-        self.modules = ["Backup", "Users"]
+        self.modules = self.config.get('modules', ['Backup', 'Users'])
 
     def connection_made(self, transport) -> None:
         self.transport = transport

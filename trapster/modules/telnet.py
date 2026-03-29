@@ -21,10 +21,77 @@ SB   = b'\xfa'  # Subnegotiation of the indicated option follows
 class TelnetProtocol(BaseProtocol):
     """
     Telnet Honeypot server based on https://www.rfc-editor.org/rfc/rfc854
+    Banners sourced from nmap service fingerprint database (nmap-service-probes).
+    Entries marked [nmap] use exact byte sequences from the database.
+    Entries marked [approx] use realistic approximations for services not in the database.
     """
-    
+
+    # greeting: bytes sent on connect ({hostname} is substituted at connection time)
+    # failure:  response after wrong credentials (login/password modes only)
+    # mode:     "login"    - collect username then password
+    #           "password" - collect password only (no username prompt)
+    #           "menu"     - display banner and close (no credential capture)
     versions = {
-        "D-Link DSL router": b"\xff\xfd\x01\xff\xfd!\xff\xfb\x01\xff\xfb\x03\r\nlogin: ",
+
+        # [nmap] Backwards compatibility key — D-Link DSL router telnetd
+        "D-Link DSL router": {
+            "greeting": b"\xff\xfd\x01\xff\xfd\x21\xff\xfb\x01\xff\xfb\x03\r\nlogin: ",
+            "failure":  b"\r\nLogin incorrect.\r\n",
+            "mode":     "login",
+        },
+        "D-Link DSL router telnetd": {
+            "greeting": b"\xff\xfd\x01\xff\xfd\x21\xff\xfb\x01\xff\xfb\x03\r\nlogin: ",
+            "failure":  b"\r\nLogin incorrect.\r\n",
+            "mode":     "login",
+        },
+        "Cisco router telnetd / IOS": {
+            "greeting": (
+                b"\xff\xfb\x01\xff\xfb\x03\xff\xfd\x18\xff\xfd\x1f"
+                b"\r\n\r\nUser Access Verification\r\n\r\nUsername: "
+            ),
+            "failure":  b"\r\n% Login invalid\r\n\r\n",
+            "mode":     "login",
+        },
+        "HP JetDirect printer telnetd": {
+            "greeting": b"\xff\xfc\x01\r\nHP JetDirect\r\n\r\nPassword:",
+            "failure":  b"\r\nAccess denied.\r\n",
+            "mode":     "password",
+        },
+        "IBM switch telnetd": {
+            "greeting": (
+                b"\x1b[1;1H\x1b[2J\x1b[8;38H\x1b[1;1H"
+                b"\x1b[2;1H(C) Copyright IBM Corp. 1999\x1b[3;1HAll Rights Reserved.\r\n\r\nLogin: "
+            ),
+            "failure":  b"\r\nLogin incorrect.\r\n",
+            "mode":     "login",
+        },
+        "Netgear FSM router/switch telnetd": {
+            "greeting": b"\xff\xfb\x01\xff\xfb\x03\r\n(FSM7328S) \r\nUser:",
+            "failure":  b"\r\nLogin incorrect.\r\n",
+            "mode":     "login",
+        },
+        "Netgear broadband router telnetd": {
+            "greeting": b"\xff\xfb\x03\xff\xfb\x01\r\nPassword: ",
+            "failure":  b"\r\nLogin failed.\r\n",
+            "mode":     "password",
+        },
+        "Siemens router telnetd": {
+            "greeting": b"\r\nSiemens 3640 T1E1 [COMBO] Router (RS-130) v5.2.0 Ready\r\n\xff\xfb\x01\xff\xfb\x03\xff\xfd\x01\xff\xfe\x01Username: ",
+            "failure":  b"\r\nAccess denied.\r\n",
+            "mode":     "login",
+        },
+        "Hikvision DVR": {
+            "greeting": (
+                b"\r\n******************************************************************************\r\n"
+                b"* Copyright (c) 2023 Hikvision Digital Technology Co., Ltd.                  *\r\n"
+                b"* Without the owner's prior written consent,                                 *\r\n"
+                b"* no decompiling or reverse-engineering shall be allowed.                    *\r\n"
+                b"******************************************************************************\r\n"
+                b"\r\nLogin: "
+            ),
+            "failure":  b"\r\nLogin failed.\r\n",
+            "mode":     "login",
+        }
     }
 
     def __init__(self, config=None):
@@ -38,7 +105,18 @@ class TelnetProtocol(BaseProtocol):
         self.transport = transport
         self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
 
-        self.transport.write(self.versions[self.config.get('version', 'D-Link DSL router')])
+        version_key = self.config.get('version', 'Cisco router telnetd / IOS')
+        self._version = self.versions.get(version_key, self.versions['Cisco router telnetd / IOS'])
+
+        hostname = self.config.get('hostname', 'router').encode()
+        greeting = self._version["greeting"].replace(b"{hostname}", hostname)
+        self.transport.write(greeting)
+
+        mode = self._version.get("mode", "login")
+        if mode == "password":
+            self.state = 'PASSWORD'
+        elif mode == "menu":
+            self.state = 'MENU'
 
     def data_received(self, data):
 
@@ -72,9 +150,13 @@ class TelnetProtocol(BaseProtocol):
                 i += 1
 
     def handle_user_input(self, data):
+        if self.state == 'MENU':
+            self.transport.close()
+            return
+
         if data == b"\x7f":  # DEL character
             self.erase_character()
-        
+
         if self.state == 'USERNAME':
             if b'\n' in data or b'\r' in data:
                 self.transport.write(b"\r\nPassword: ")
@@ -97,7 +179,7 @@ class TelnetProtocol(BaseProtocol):
         username = self.username.decode('utf-8', errors='replace')
         password = self.password.decode('utf-8', errors='replace')
         self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username": username, "password": password})
-        self.transport.write(b"\r\nLogin incorrect.\r\n")
+        self.transport.write(self._version["failure"])
         self.transport.close()
 
 class TelnetHoneypot(BaseHoneypot):

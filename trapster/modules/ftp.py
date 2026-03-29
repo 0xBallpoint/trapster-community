@@ -56,7 +56,10 @@ class FtpProtocol(BaseProtocol):
         elif self.user:
             self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username": str(self.user), "password": str(self.password)})
 
-            self.transport.write(b"530 Authentication Failed\r\n")
+            if "microsoft" in self.config.get('banner', '').lower():
+                self.transport.write(b"530 User cannot log in.\r\n")
+            else:
+                self.transport.write(b"530 Login incorrect.\r\n")
 
             #try:
             #    true_password = self.config.get('passwords').get(self.user)

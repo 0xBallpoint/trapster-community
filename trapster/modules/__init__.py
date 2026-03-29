@@ -9,6 +9,7 @@ from .dns import DnsHoneypot
 from .rdp import RdpHoneypot
 from .postgres import PostgresHoneypot
 from .ldap import LdapHoneypot
+from .ldaps import LdapsHoneypot
 from .snmp import SnmpHoneypot
 from .mssql import MssqlHoneypot
 from .rsync import RsyncHoneypot

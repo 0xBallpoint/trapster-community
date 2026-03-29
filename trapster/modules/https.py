@@ -35,8 +35,8 @@ class HttpsHoneypot(HttpHoneypot):
         self.ORGANIZATION_NAME = config.get("organization_name") or None
         self.COMMON_NAME = config.get("common_name", "server.internal")
         
-        self.key_path = Path(config.get("key", "/etc/trapster/ssl/key.pem"))
-        self.certificate_path = Path(config.get("certificate", "/etc/trapster/ssl/certificate.pem"))
+        self.key_path = Path(config.get("key", "trapster/data/ssl/https/key.pem"))
+        self.certificate_path = Path(config.get("certificate", "trapster/data/ssl/https/certificate.pem"))
 
         self.generate_certificate()
     
