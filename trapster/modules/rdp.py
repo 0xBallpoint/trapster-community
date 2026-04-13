@@ -42,9 +42,11 @@ class RdpProtocol(BaseProtocol):
             "2019":   (10, 0, 17763),  # Windows Server 2019
             "2022":   (10, 0, 20348),  # Windows Server 2022
         }
-        self.os_version = self.versions.get(
-            self.config.get("version", "2019"), self.versions["2019"]
-        )
+        self._version_key = self.config.get("version", "2019")
+        self.os_version = self.versions.get(self._version_key, self.versions["2019"])
+
+        # XP and early systems don't support NLA/TLS negotiation
+        self._nla_supported = self._version_key not in ('winxp',)
 
     def connection_made(self, transport):
         self.transport = transport
@@ -84,16 +86,29 @@ class RdpProtocol(BaseProtocol):
 
         return src_ref, requested_protocols
 
+    _neg_flags_map = {
+        'winxp':  0x00,
+        'win7':   0x07,
+        'win81':  0x0f,
+        'win10':  0x1f,
+        'win11':  0x1f,
+        '2012':   0x0f,
+        '2012r2': 0x0f,
+        '2016':   0x1f,
+        '2019':   0x1f,
+        '2022':   0x1f,
+    }
+
     def _build_cc(self, src_ref, selected_protocol):
         """Build X.224 Connection Confirm (CC) TPDU."""
         # RDP Negotiation Response (Type_RDP_NEG_RSP = 0x02)
-        neg_rsp = struct.pack('<BBHI', 0x02, 0x1f, 8, selected_protocol) \
+        flags = self._neg_flags_map.get(self._version_key, 0x1f)
+        neg_rsp = struct.pack('<BBHI', 0x02, flags, 8, selected_protocol) \
             if selected_protocol is not None else b''
 
         # X.224 CC: type(0xD0) + DST-REF(echoes client SRC-REF) + SRC-REF + CLASS + [neg_rsp]
-        # Randomise SRC-REF so it doesn't stand out as a fixed honeypot constant
-        our_src_ref = os.urandom(2)
-        x224_body = b'\xd0' + src_ref + our_src_ref + b'\x00' + neg_rsp
+        # Real Windows always sends SRC-REF 0x1234; nmap's fingerprint matches on this exact value.
+        x224_body = b'\xd0' + src_ref + b'\x12\x34' + b'\x00' + neg_rsp
         li = len(x224_body)
         x224 = bytes([li]) + x224_body
 
@@ -114,8 +129,7 @@ class RdpProtocol(BaseProtocol):
         )
 
         # Select the best matching security protocol
-        if requested_protocols is None:
-            # Old client with no negotiation request — use classic RDP
+        if requested_protocols is None or not self._nla_supported:
             selected = PROTOCOL_RDP
             include_neg = False
         else:
