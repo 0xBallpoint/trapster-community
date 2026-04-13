@@ -389,7 +389,7 @@ class RdpHoneypot(BaseHoneypot):
             ))
 
         subject = issuer = x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, self.config.get('ntlm_hostname', 'WIN-RDP'),
+            x509.NameAttribute(NameOID.COMMON_NAME, self.config.get('ntlm_hostname', 'WIN-RDP')),
         ])
 
         cert = (
