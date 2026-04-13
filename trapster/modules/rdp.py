@@ -366,7 +366,7 @@ class RdpHoneypot(BaseHoneypot):
 
         self.key_path  = Path(config.get("key",         "trapster/data/ssl/rdp/key.pem"))
         self.cert_path = Path(config.get("certificate", "trapster/data/ssl/rdp/certificate.pem"))
-        self.generate_certificate()
+        self.generate_certificate(config)
 
         config["key_path"]  = str(self.key_path)
         config["cert_path"] = str(self.cert_path)
@@ -375,7 +375,7 @@ class RdpHoneypot(BaseHoneypot):
         self.handler.logger = logger
         self.handler.config = config
 
-    def generate_certificate(self):
+    def generate_certificate(self, config):
         self.key_path.parent.mkdir(parents=True, exist_ok=True)
         self.cert_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -389,7 +389,7 @@ class RdpHoneypot(BaseHoneypot):
             ))
 
         subject = issuer = x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, self.config.get('ntlm_hostname', 'WIN-RDP'),
+            x509.NameAttribute(NameOID.COMMON_NAME, config.get('ntlm_hostname', 'WIN-RDP')),
         ])
 
         cert = (

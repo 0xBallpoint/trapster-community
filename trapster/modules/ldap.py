@@ -19,6 +19,11 @@ class LdapProtocol(BaseProtocol):
         'Windows2012R2Domain': ('DSID-0C090484', 'v3ff3'),
         'WinThreshold':        ('DSID-0C090569', 'v4f7c'),  # Server 2016/2019/2022
     }
+    # Default user objects present in a freshly promoted AD domain controller.
+    # and the domain controller itself
+    _common_users = set({
+        'administrator', 'guest', 'krbtgt',
+    })
 
     def __init__(self, config=None):
         self.protocol_name = "ldap"
@@ -26,6 +31,7 @@ class LdapProtocol(BaseProtocol):
 
         # hostname: new global key, falls back to legacy 'server' key
         self._hostname = self.config.get('hostname') or self.config.get('server', 'DC01')
+        self._common_users.update(set([self._hostname.lower()+'$']))
 
         # domain: new format is full FQDN (e.g. 'corp.local')
         # legacy format uses separate 'domain' + 'tld' keys (e.g. 'corp' + 'local')
@@ -35,17 +41,69 @@ class LdapProtocol(BaseProtocol):
             raw_domain = f"{raw_domain}.{self.config.get('tld', 'local')}"
         self._dc_parts = raw_domain.split('.')  # ['corp', 'local']
         self._fqdn = raw_domain                 # 'corp.local'
+        self._netbios_domain = self._dc_parts[0]
+
 
         level = self.config.get('level', 'WinThreshold')
-        dsid, vtag = self._dsid_map.get(level, self._dsid_map['WinThreshold'])
-        self._bind_error = (
-            f'8009030C: LdapErr: {dsid}, comment: AcceptSecurityContext error, data 2030, {vtag}'
-        )
-        
+        self._dsid, self._vtag = self._dsid_map.get(level, self._dsid_map['WinThreshold'])
+        self._known_users = self._common_users
+
         self.functionality_level = self.get_functionality_level(self.config.get('level', 'WinThreshold'))
         self._highest_committed_usn = str(random.randint(40000, 200000))
         self._ntlm_challenge = None  # set when we issue a Type 2 challenge
-        
+
+    def _ldap_bind_error_nt_status_hex(self, bind_name: str, ntlm_identity: str = '') -> str:
+        """Return LDAP bind subcode: bad DN (2030), unknown user (525), bad password (52e)."""
+        candidate = (bind_name or '').strip()
+        if not candidate and ntlm_identity:
+            candidate = ntlm_identity.strip()
+        if not candidate:
+            return '2030'
+
+        username = ''
+        cand_lower = candidate.lower()
+        base_dn = ','.join(f'dc={p}' for p in self._dc_parts)
+        if '=' in candidate and ',' in candidate:
+            # DN bind: must target this naming context, and carry a user-ish first RDN.
+            if not (cand_lower.endswith(',' + base_dn) or cand_lower == base_dn):
+                return '2030'
+            first_rdn = candidate.split(',', 1)[0]
+            if '=' not in first_rdn:
+                return '2030'
+            rdn_type, rdn_value = first_rdn.split('=', 1)
+            if rdn_type.strip().lower() not in ('cn', 'uid', 'samaccountname', 'userprincipalname'):
+                return '2030'
+            username = rdn_value.strip().lower()
+            if not username:
+                return '2030'
+        elif '@' in cand_lower:
+            # UPN bind.
+            user_part, domain_part = cand_lower.rsplit('@', 1)
+            if domain_part != self._fqdn.lower() or not user_part:
+                return '2030'
+            username = user_part
+        if '\\' in candidate:
+            dom, _ = candidate.split('\\', 1)
+            dom_lower = dom.lower()
+            if dom_lower != self._netbios_domain.lower() and dom_lower != self._fqdn.lower():
+                return '2030'
+            username = candidate.split('\\', 1)[1].strip().lower()
+            if not username:
+                return '2030'
+        if not username:
+            # Plain account name: treat as naming-context valid but unknown unless common.
+            username = cand_lower
+
+        if username in self._known_users:
+            return '52e'
+        return '525'
+
+    def _bind_diagnostic_message(self, bind_name: str, ntlm_identity: str = '') -> str:
+        data = self._ldap_bind_error_nt_status_hex(bind_name, ntlm_identity)
+        return (
+            f'80090308: LdapErr: {self._dsid}, comment: AcceptSecurityContext error, data {data}, {self._vtag}'
+        )
+
     def connection_made(self, transport) -> None:
         self.transport = transport
         self.logger.log(self.protocol_name + "." + self.logger.CONNECTION, self.transport)
@@ -109,11 +167,16 @@ class LdapProtocol(BaseProtocol):
 
 
     def bind_response(self, protocolOp):
+        try:
+            bind_name = str(protocolOp['bindRequest']['name'])
+        except Exception:
+            bind_name = ''
+
         authentication = protocolOp['bindRequest']['authentication'].getName()
         msg = ldapasn1.BindResponse()
 
         if authentication == 'simple':
-            username = str(protocolOp['bindRequest']['name'])
+            username = bind_name
             password = str(protocolOp['bindRequest']['authentication']['simple'])
 
             if password == '':
@@ -126,7 +189,7 @@ class LdapProtocol(BaseProtocol):
                 # credential bind, disallow
                 msg['resultCode'] = 49
                 msg['matchedDN'] = ''
-                msg['diagnosticMessage'] = self._bind_error
+                msg['diagnosticMessage'] = self._bind_diagnostic_message(username)
                 self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={'username': username, 'password': password})
 
         elif authentication == 'sicilyNegotiate':
@@ -143,12 +206,13 @@ class LdapProtocol(BaseProtocol):
             # Microsoft Sicily (NTLM) — Type 3: extract and log credentials
             ntlm_type3 = bytes(protocolOp['bindRequest']['authentication']['sicilyResponse'])
             username, domain = parse_ntlm_type3(ntlm_type3)
+            ntlm_identity = f'{domain}\\{username}' if domain else username
             self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport,
-                            extra={'username': f'{domain}\\{username}' if domain else username,
+                            extra={'username': ntlm_identity,
                                    'password': ''})
             msg['resultCode'] = 49
             msg['matchedDN'] = ''
-            msg['diagnosticMessage'] = self._bind_error
+            msg['diagnosticMessage'] = self._bind_diagnostic_message(bind_name, ntlm_identity)
 
         elif authentication == 'sasl':
             try:
@@ -170,17 +234,18 @@ class LdapProtocol(BaseProtocol):
             elif ntlm and ntlm[8:12] == b'\x03\x00\x00\x00':
                 # NTLM Type 3 (Authenticate) — extract and log credentials
                 username, domain = parse_ntlm_type3(ntlm)
+                ntlm_identity = f'{domain}\\{username}' if domain else username
                 self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport,
-                                extra={'username': f'{domain}\\{username}' if domain else username,
+                                extra={'username': ntlm_identity,
                                        'password': ''})
                 msg['resultCode'] = 49
                 msg['matchedDN'] = ''
-                msg['diagnosticMessage'] = self._bind_error
+                msg['diagnosticMessage'] = self._bind_diagnostic_message(bind_name, ntlm_identity)
 
             else:
                 msg['resultCode'] = 49
                 msg['matchedDN'] = ''
-                msg['diagnosticMessage'] = self._bind_error
+                msg['diagnosticMessage'] = self._bind_diagnostic_message(bind_name)
 
         return msg
 
