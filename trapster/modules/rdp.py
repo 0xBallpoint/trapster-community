@@ -176,7 +176,7 @@ class RdpProtocol(BaseProtocol):
 
     def _build_ntlm_challenge(self):
         """Build an NTLM Type 2 (Challenge) message with realistic OS/host metadata."""
-        hostname = self.config.get('ntlm_hostname', 'DESKTOP-RDP').encode('utf-16-le')
+        hostname = self.config.get('ntlm_hostname', 'WIN-RDP').encode('utf-16-le')
         domain   = self.config.get('ntlm_domain',   'WORKGROUP').encode('utf-16-le')
 
         def av_pair(av_id, value):
@@ -389,7 +389,7 @@ class RdpHoneypot(BaseHoneypot):
             ))
 
         subject = issuer = x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, "DESKTOP-RDP"),
+            x509.NameAttribute(NameOID.COMMON_NAME, self.config.get('ntlm_hostname', 'WIN-RDP'),
         ])
 
         cert = (
