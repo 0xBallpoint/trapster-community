@@ -1,4 +1,4 @@
-{% set id = request.url.path.split('/')[-1] %}
+{% set id = request.query_string.get('id', '1') %}
 {% set username = random(seed=id, alphabet='abcdefghijklmnopqrstuvwxyz', length=8) %}
 {
   "id": "{{ id }}",
