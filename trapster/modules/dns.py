@@ -76,6 +76,7 @@ class DnsTcpProtocol(BaseProtocol):
         self.protocol_name = "dns"  
 
 class DnsHoneypot(BaseHoneypot):
+    service_name = "dns"
 
     def __init__(self, config, logger, bindaddr):
         super().__init__(config, logger, bindaddr)
@@ -104,16 +105,19 @@ class DnsHoneypot(BaseHoneypot):
     async def _start_server(self):
         loop = asyncio.get_running_loop()
 
-        # Create UDP server
-        self.udp_transport, self.udp_protocol = await loop.create_datagram_endpoint(self.handler_udp, 
-                                    local_addr=(self.bindaddr, self.port))
-        
-        # Create TCP server
         try:
+            # Create UDP server
+            self.udp_transport, self.udp_protocol = await loop.create_datagram_endpoint(self.handler_udp, 
+                                        local_addr=(self.bindaddr, self.port))
+            
+            # Create TCP server
             self.server = await loop.create_server(self.handler, host=self.bindaddr, port=self.port)
             await self.server.serve_forever()
         except asyncio.CancelledError:
             raise
+        except OSError as e:
+            self._log_bind_error(e)
+            return False
         except Exception as e:
             logging.error(e)
             return False

@@ -1,6 +1,7 @@
 from trapster.modules.base import BaseProtocol, BaseHoneypot, UdpTransporter
 
 import asyncio
+import logging
 from scapy.all import SNMP
 from scapy.error import Scapy_Exception
 
@@ -51,6 +52,7 @@ class SnmpUdpProtocol(BaseProtocol):
 
 class SnmpHoneypot(BaseHoneypot):
     """common class to all trapster instance"""
+    service_name = "snmp"
 
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
@@ -63,6 +65,15 @@ class SnmpHoneypot(BaseHoneypot):
     async def _start_server(self):
         loop = asyncio.get_running_loop()
 
-        # Create UDP server
-        transport, protocol = await loop.create_datagram_endpoint(lambda: self.handler_udp(), 
-                                    local_addr=(self.bindaddr, self.port))
+        try:
+            # Create UDP server
+            transport, protocol = await loop.create_datagram_endpoint(lambda: self.handler_udp(), 
+                                        local_addr=(self.bindaddr, self.port))
+        except asyncio.CancelledError:
+            raise
+        except OSError as e:
+            self._log_bind_error(e)
+            return False
+        except Exception as e:
+            logging.error(e)
+            return False

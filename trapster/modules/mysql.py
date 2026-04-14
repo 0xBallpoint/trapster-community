@@ -139,6 +139,8 @@ class MysqlProtocol(BaseProtocol):
 
 
 class MysqlHoneypot(BaseHoneypot):
+    service_name = "mysql"
+
     def __init__(self, config, logger, bindaddr='0.0.0.0'):
         super().__init__(config, logger, bindaddr)
         self.handler = lambda: MysqlProtocol(config=config)

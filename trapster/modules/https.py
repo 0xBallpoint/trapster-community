@@ -24,6 +24,7 @@ class HttpsHandler(HttpHandler):
 
 class HttpsHoneypot(HttpHoneypot):
     """common class to all trapster instance"""
+    service_name = "https"
 
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
@@ -70,7 +71,16 @@ class HttpsHoneypot(HttpHoneypot):
             ssl_certfile=str(self.certificate_path)
         )
         self.server = uvicorn.Server(config)
-        await self.server.serve()
+        try:
+            await self.server.serve()
+        except (OSError, SystemExit) as e:
+            self._log_bind_error(e)
+            return False
+        except asyncio.CancelledError:
+            self.server.should_exit = True
+            if hasattr(self.server, 'servers'):
+                await self.server.shutdown()
+            raise
 
     def generate_certificate(self):
         '''

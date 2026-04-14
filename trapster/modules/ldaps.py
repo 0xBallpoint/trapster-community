@@ -14,6 +14,7 @@ import logging
 
 
 class LdapsHoneypot(LdapHoneypot):
+    service_name = "ldaps"
 
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
@@ -73,6 +74,9 @@ class LdapsHoneypot(LdapHoneypot):
             await self.server.serve_forever()
         except asyncio.CancelledError:
             raise
+        except OSError as e:
+            self._log_bind_error(e)
+            return False
         except Exception as e:
             logging.error(e)
             return False

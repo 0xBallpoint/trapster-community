@@ -71,6 +71,7 @@ class FtpProtocol(BaseProtocol):
 
 class FtpHoneypot(BaseHoneypot):
     """common class to all trapster instance"""
+    service_name = "ftp"
 
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)

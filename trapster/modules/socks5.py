@@ -65,6 +65,7 @@ class Socks5Protocol(BaseProtocol):
 #        self.connection_lost(None)
 
 class Socks5Honeypot(BaseHoneypot):
+    service_name = "socks5"
 
    def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)

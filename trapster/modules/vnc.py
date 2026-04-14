@@ -87,6 +87,8 @@ class VncProtocol(BaseProtocol):
         self.transport.close()
 
 class VncHoneypot(BaseHoneypot):
+    service_name = "vnc"
+
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
         self.handler = lambda: VncProtocol(config=config)
