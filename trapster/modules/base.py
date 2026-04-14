@@ -50,6 +50,8 @@ class BaseProtocol(asyncio.Protocol):
 class BaseHoneypot(object):
     """common class to all trapster instance"""
 
+    service_name = "base"
+
     def __init__(self, config, logger, bindaddr="0.0.0.0", **kwargs):
         self.port = config['port']
         self.bindaddr = bindaddr
@@ -57,7 +59,10 @@ class BaseHoneypot(object):
         self.handler = BaseProtocol
         self.handler.logger = logger
         self.server = None
-        self.task = None    
+        self.task = None
+
+    def _log_bind_error(self):
+        logging.error(f"Service {self.service_name} could not be started on {self.bindaddr}:{self.port}: address already in use")
 
     async def start(self):
         # Start the server in a separate task
@@ -72,6 +77,9 @@ class BaseHoneypot(object):
             await self.server.serve_forever()
         except asyncio.CancelledError:
             raise
+        except OSError:
+            self._log_bind_error()
+            return False
         except Exception as e:
             logging.error(e)
             return False

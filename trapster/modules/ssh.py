@@ -203,6 +203,7 @@ class SshProtocol(asyncssh.SSHServer, BaseProtocol):
 
 class SshHoneypot(BaseHoneypot):
     """common class to all trapster instance"""
+    service_name = "ssh"
 
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
@@ -228,6 +229,9 @@ class SshHoneypot(BaseHoneypot):
             await self.server.serve_forever()
         except asyncio.CancelledError:
             raise
+        except OSError:
+            self._log_bind_error()
+            return False
         except Exception as e:
             logging.error(e)
             return False

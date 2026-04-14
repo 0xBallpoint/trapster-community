@@ -183,6 +183,7 @@ class TelnetProtocol(BaseProtocol):
         self.transport.close()
 
 class TelnetHoneypot(BaseHoneypot):
+    service_name = "telnet"
 
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)

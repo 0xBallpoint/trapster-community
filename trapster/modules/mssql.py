@@ -125,6 +125,8 @@ class MssqlProtocol(BaseProtocol):
         return header + packet_data
 
 class MssqlHoneypot(BaseHoneypot):
+    service_name = "mssql"
+
     def __init__(self, config, logger, bindaddr='0.0.0.0'):
         super().__init__(config, logger, bindaddr)
         

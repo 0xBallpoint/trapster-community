@@ -1,5 +1,6 @@
 import uvicorn
 import asyncio
+import logging
 from starlette.requests import ClientDisconnect
 from fastapi import FastAPI, Request, Response
 
@@ -437,6 +438,8 @@ class HeaderCapitalizationMiddleware:
 
 
 class HttpHoneypot(BaseHoneypot):
+    service_name = "http"
+
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
         self.port = config['port']
@@ -483,6 +486,9 @@ class HttpHoneypot(BaseHoneypot):
         self.server = uvicorn.Server(config)
         try:
             await self.server.serve()
+        except (OSError, SystemExit):
+            self._log_bind_error()
+            return False
         except asyncio.CancelledError:
             self.server.should_exit = True
             # Only call shutdown if the server was actually started

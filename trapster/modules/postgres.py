@@ -69,6 +69,7 @@ class PostgresProtocol(BaseProtocol):
 
 
 class PostgresHoneypot(BaseHoneypot):
+    service_name = "postgres"
 
     def __init__(self, config, logger, bindaddr='0.0.0.0'):
         super().__init__(config, logger, bindaddr)

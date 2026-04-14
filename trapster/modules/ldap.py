@@ -441,6 +441,7 @@ class LdapProtocol(BaseProtocol):
 
 class LdapHoneypot(BaseHoneypot):
     """common class to all trapster instance"""
+    service_name = "ldap"
 
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
