@@ -1,4 +1,5 @@
 import asyncio
+import errno
 import logging
 from typing import Optional
 
@@ -61,8 +62,16 @@ class BaseHoneypot(object):
         self.server = None
         self.task = None
 
-    def _log_bind_error(self):
-        logging.error(f"Service {self.service_name} could not be started on {self.bindaddr}:{self.port}: address already in use")
+    def _log_bind_error(self, exc: Exception = None):
+        if isinstance(exc, OSError) and exc.errno == errno.EACCES:
+            reason = f"permission denied"
+        elif isinstance(exc, OSError) and exc.errno == errno.EADDRINUSE:
+            reason = "address already in use"
+        elif isinstance(exc, OSError):
+            reason = str(exc)
+        else:
+            reason = "address already in use"
+        logging.error(f"Service {self.service_name} could not be started on {self.bindaddr}:{self.port}: {reason}")
 
     async def start(self):
         # Start the server in a separate task
@@ -77,8 +86,8 @@ class BaseHoneypot(object):
             await self.server.serve_forever()
         except asyncio.CancelledError:
             raise
-        except OSError:
-            self._log_bind_error()
+        except OSError as e:
+            self._log_bind_error(e)
             return False
         except Exception as e:
             logging.error(e)

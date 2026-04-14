@@ -73,8 +73,8 @@ class HttpsHoneypot(HttpHoneypot):
         self.server = uvicorn.Server(config)
         try:
             await self.server.serve()
-        except (OSError, SystemExit):
-            self._log_bind_error()
+        except (OSError, SystemExit) as e:
+            self._log_bind_error(e)
             return False
         except asyncio.CancelledError:
             self.server.should_exit = True

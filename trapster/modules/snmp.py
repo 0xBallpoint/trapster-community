@@ -71,8 +71,8 @@ class SnmpHoneypot(BaseHoneypot):
                                         local_addr=(self.bindaddr, self.port))
         except asyncio.CancelledError:
             raise
-        except OSError:
-            self._log_bind_error()
+        except OSError as e:
+            self._log_bind_error(e)
             return False
         except Exception as e:
             logging.error(e)
