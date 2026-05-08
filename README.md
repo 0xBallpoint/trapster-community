@@ -60,14 +60,125 @@ AI_API_KEY=<YOUR_OPENAI_API_KEY>
 
 ## Logs
 
-### Format
-Each module can generate up to 4 types of logs: `connection`, `data`, `login`, and `query`.
-* `connection`: Indicates that a connection has been made to the module.
-* `data`: Represents raw data that has been sent, logged in HEX format. This data is unprocessed.
-* `login`: Captures login attempts to the module. The data field is in JSON format and contains processed information.
-* `query`: Logs data that has been processed and does not correspond to an authentication attempt. The data field is in JSON format and contains processed information.
+Trapster now separates:
 
-You can then filter log type you don't need.
+- **format**: how events are structured (`default` or `ecs`)
+- **output**: where events are sent (`terminal`, `file`, `api`, `redis`)
+
+This lets you combine them freely, for example:
+- default JSON -> terminal
+- default JSON -> API
+- ECS -> API
+
+### Event types
+Each module can generate up to 4 event actions: `connection`, `data`, `login`, and `query`.
+- `connection`: a connection has been made to the module
+- `data`: raw payload received (hex-encoded in the `data` field)
+- `login`: authentication attempt
+- `query`: processed protocol request which is not an authentication attempt
+
+### Formats
+
+#### `default`
+The original Trapster event structure:
+```json
+{
+  "device": "trapster-1",
+  "logtype": "ftp.login",
+  "dst_ip": "10.0.0.10",
+  "dst_port": 21,
+  "src_ip": "10.0.0.50",
+  "src_port": 49152,
+  "timestamp": "2026-05-08 10:00:00.123456",
+  "data": "68656c6c6f",
+  "extra": {
+    "username": "admin",
+    "password": "admin"
+  }
+}
+```
+
+#### `ecs`
+Elastic Common Schema format, with protocol details under `trapster.<protocol>.*`:
+```json
+{
+  "@timestamp": "2026-05-08T10:00:00.123456Z",
+  "ecs": { "version": "8.11.0" },
+  "event": {
+    "category": ["authentication", "network"],
+    "type": ["start", "info"],
+    "action": "login",
+    "outcome": "failure",
+    "dataset": "trapster.ftp"
+  },
+  "network": {
+    "transport": "tcp",
+    "protocol": "ftp",
+    "application": "ftp",
+    "type": "ipv4"
+  },
+  "trapster": {
+    "raw": "68656c6c6f",
+    "login": {
+      "username": "admin",
+      "password": "admin"
+    },
+    "ftp": {}
+  }
+}
+```
+
+### Configuration examples
+
+#### 1) Default JSON -> terminal
+```json
+"logger": {
+  "output": "terminal",
+  "format": "default",
+  "kwargs": {}
+}
+```
+
+#### 2) ECS -> API
+```json
+"logger": {
+  "output": "api",
+  "format": "ecs",
+  "kwargs": {
+    "url": "https://example.local/ingest",
+    "headers": {
+      "Authorization": "Bearer <token>"
+    }
+  }
+}
+```
+
+#### 3) Default JSON -> file
+```json
+"logger": {
+  "output": "file",
+  "format": "default",
+  "kwargs": {
+    "logfile": "/var/log/trapster-community.log",
+    "mode": "a"
+  }
+}
+```
+
+### Retrocompatibility
+Existing logger configuration still works (`name` + `kwargs`):
+```json
+"logger": {
+  "name": "JsonLogger",
+  "kwargs": {}
+}
+```
+
+And also:
+- `FileLogger`
+- `ApiLogger`
+- `RedisLogger`
+- `EcsLogger`
 
 ## HTTP Engine
 
