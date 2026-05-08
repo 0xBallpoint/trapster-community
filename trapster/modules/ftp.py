@@ -2,8 +2,8 @@ from trapster.modules.base import BaseProtocol, BaseHoneypot
 
 class FtpProtocol(BaseProtocol):
 
-    def __init__(self, config={}):
-        self.config = config
+    def __init__(self, config=None):
+        self.config = config or {}
         self.config.setdefault('banner', "Microsoft FTP Service")
    
         self.protocol_name = "ftp"

@@ -137,12 +137,10 @@ Last login: {last_dt.strftime('%a %b %d %H:%M:%S %Y')} from {last_ip}
 class SshProtocol(asyncssh.SSHServer, BaseProtocol):
     def __init__(self, config=None):
         self.protocol_name = "ssh"
-        self.config = config or {
-            'version': 'SSH-2.0-OpenSSH_9.2p1 Debian-2+deb12u7',
-            'banner': '',
-            'users': {
-            }
-        }
+        self.config = config or {}
+        self.config.setdefault('version', 'SSH-2.0-OpenSSH_9.2p1 Debian-2+deb12u7')
+        self.config.setdefault('banner', '')
+        self.config.setdefault('users', {})
 
     def connection_made(self, transport: asyncssh.SSHServerConnection) -> None:
         self.transport = transport

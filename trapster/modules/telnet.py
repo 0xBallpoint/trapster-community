@@ -96,6 +96,8 @@ class TelnetProtocol(BaseProtocol):
 
     def __init__(self, config=None):
         self.config = config or {}
+        self.config.setdefault('version', 'Cisco router telnetd / IOS')
+        self.config.setdefault('hostname', 'router')
         self.protocol_name = "telnet"
         self.username = b''
         self.password = b''

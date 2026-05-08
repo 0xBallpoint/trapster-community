@@ -24,14 +24,19 @@ except ImportError:
 class HttpHandler:
     def __init__(self, config, logger):
         self.protocol_name = "http"
+        self.config = config or {}
+        self.config.setdefault('skin', 'default_apache')
+        self.config.setdefault('basic_auth', False)
+        self.config.setdefault('username', None)
+        self.config.setdefault('password', None)
 
         self.logger = logger
         self.logger.debug = False
 
-        self.NAME = config.get('skin', 'default_apache')
-        self.BASIC_AUTH = config.get('basic_auth', False)
-        self.USERNAME = config.get('username', None)
-        self.PASSWORD = config.get('password', None)
+        self.NAME = self.config.get('skin')
+        self.BASIC_AUTH = self.config.get('basic_auth')
+        self.USERNAME = self.config.get('username')
+        self.PASSWORD = self.config.get('password')
         self.data_folder = Path(__file__).parent.parent / "data" / "http"
     
     def setup(self):

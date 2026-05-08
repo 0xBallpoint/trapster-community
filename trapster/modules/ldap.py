@@ -28,6 +28,9 @@ class LdapProtocol(BaseProtocol):
     def __init__(self, config=None):
         self.protocol_name = "ldap"
         self.config = config or {}
+        self.config.setdefault('hostname', 'DC01')
+        self.config.setdefault('domain', 'corp.local')
+        self.config.setdefault('level', 'WinThreshold')
 
         # hostname: new global key, falls back to legacy 'server' key
         self._hostname = self.config.get('hostname') or self.config.get('server', 'DC01')
@@ -35,7 +38,7 @@ class LdapProtocol(BaseProtocol):
 
         # domain: new format is full FQDN (e.g. 'corp.local')
         # legacy format uses separate 'domain' + 'tld' keys (e.g. 'corp' + 'local')
-        raw_domain = self.config.get('domain', 'corp.local')
+        raw_domain = self.config.get('domain')
         if '.' not in raw_domain:
             # legacy: domain is just the label, tld is separate
             raw_domain = f"{raw_domain}.{self.config.get('tld', 'local')}"
@@ -44,11 +47,11 @@ class LdapProtocol(BaseProtocol):
         self._netbios_domain = self._dc_parts[0]
 
 
-        level = self.config.get('level', 'WinThreshold')
+        level = self.config.get('level')
         self._dsid, self._vtag = self._dsid_map.get(level, self._dsid_map['WinThreshold'])
         self._known_users = self._common_users
 
-        self.functionality_level = self.get_functionality_level(self.config.get('level', 'WinThreshold'))
+        self.functionality_level = self.get_functionality_level(self.config.get('level'))
         self._highest_committed_usn = str(random.randint(40000, 200000))
         self._ntlm_challenge = None  # set when we issue a Type 2 challenge
 

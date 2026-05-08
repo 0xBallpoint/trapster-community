@@ -22,10 +22,9 @@ class MysqlProtocol(BaseProtocol):
     #     "11.4.4-MariaDB",      # MariaDB 11.4
 
     def __init__(self, config=None):
-        self.config = config or {
-            "version": "8.4.3",
-            "auth_plugin": "mysql_native_password",
-        }
+        self.config = config or {}
+        self.config.setdefault("version", "8.4.3")
+        self.config.setdefault("auth_plugin", "mysql_native_password")
         self.protocol_name = "mysql"
         self.protocol_version = b'\x0a'
 

@@ -25,6 +25,9 @@ class RdpProtocol(BaseProtocol):
 
     def __init__(self, config=None):
         self.config = config or {}
+        self.config.setdefault("version", "2019")
+        self.config.setdefault("ntlm_hostname", "WIN-RDP")
+        self.config.setdefault("ntlm_domain", "WORKGROUP")
         self.protocol_name = "rdp"
         self.state = "CR"
         self.username = ""
@@ -42,7 +45,7 @@ class RdpProtocol(BaseProtocol):
             "2019":   (10, 0, 17763),  # Windows Server 2019
             "2022":   (10, 0, 20348),  # Windows Server 2022
         }
-        self._version_key = self.config.get("version", "2019")
+        self._version_key = self.config.get("version")
         self.os_version = self.versions.get(self._version_key, self.versions["2019"])
 
         # XP and early systems don't support NLA/TLS negotiation

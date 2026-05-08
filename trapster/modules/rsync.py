@@ -6,15 +6,15 @@ import os, base64, random
 class RsyncProtocol(BaseProtocol):
 
     def __init__(self, config=None):
-        self.config = config or {
-            'version': "31.0",
-        }
+        self.config = config or {}
+        self.config.setdefault('version', "31.0")
+        self.config.setdefault('modules', ['Backup', 'Users'])
         self.protocol_name = "rsync"
         self.user = ""
         self.password = ""
         self.state = "greeting" # can be greeting or startup
         self.expected_auth = False
-        self.modules = self.config.get('modules', ['Backup', 'Users'])
+        self.modules = self.config.get('modules')
 
     def connection_made(self, transport) -> None:
         self.transport = transport
