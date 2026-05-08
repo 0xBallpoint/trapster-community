@@ -33,6 +33,7 @@ Visit the [Trapster website](https://trapster.cloud) to learn more about our com
 | HTTP/HTTPS (80/443) | Copy website, features custom YAML configuration templating engine |
 | SNMP (161) | Log SNMP queries |
 | LDAP (389) | Capture LDAP login attempts and queries |
+| LDAPS (636) | Capture LDAP login attempts and queries over TLS |
 | Rsync (873) | Capture RSYNC login attempts |
 | MSSQL (1433) | Capture MSSQL login attempts |
 | MySQL (3306) | Capture MySQL login attempts |
@@ -57,6 +58,28 @@ AI_MODEL=o4-mini
 AI_BASE_URL=https://api.openai.com/v1/
 AI_API_KEY=<YOUR_OPENAI_API_KEY>
 ```
+
+## Configuration wizard
+
+You can start from the example **`trapster/data/trapster.conf`**, or run the helper script to create **`./trapster.generated.conf`** interactively.
+
+```bash
+bash scripts/trapster-wizard.sh
+```
+
+From a checkout, with a venv:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+bash scripts/trapster-wizard.sh
+python main.py -c ./trapster.generated.conf
+```
+
+Or install the package in editable mode (`pip install -e .`) and run `trapster -c ./trapster.generated.conf`.
+
+The example configuration listens on well-known ports; binding them usually requires elevated privileges. Run as **root**, or use **`sudo -E`** (keeps your environment, e.g. an activated venv) when starting Trapster with Python.
 
 ## Logs
 
