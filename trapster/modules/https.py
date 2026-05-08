@@ -29,15 +29,22 @@ class HttpsHoneypot(HttpHoneypot):
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
         self.handler = HttpsHandler(config=config, logger=logger)
+        config.setdefault("country_name", None)
+        config.setdefault("state_or_province_name", None)
+        config.setdefault("locality_name", None)
+        config.setdefault("organization_name", None)
+        config.setdefault("common_name", "server.internal")
+        config.setdefault("key", "trapster/data/ssl/https/key.pem")
+        config.setdefault("certificate", "trapster/data/ssl/https/certificate.pem")
 
         self.COUNTRY_NAME = config.get("country_name") or None
         self.STATE_OR_PROVINCE_NAME = config.get("state_or_province_name") or None
         self.LOCALITY_NAME = config.get("locality_name") or None
         self.ORGANIZATION_NAME = config.get("organization_name") or None
-        self.COMMON_NAME = config.get("common_name", "server.internal")
+        self.COMMON_NAME = config.get("common_name")
         
-        self.key_path = Path(config.get("key", "trapster/data/ssl/https/key.pem"))
-        self.certificate_path = Path(config.get("certificate", "trapster/data/ssl/https/certificate.pem"))
+        self.key_path = Path(config.get("key"))
+        self.certificate_path = Path(config.get("certificate"))
 
         self.generate_certificate()
     

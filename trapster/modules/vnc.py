@@ -15,9 +15,8 @@ class VncProtocol(BaseProtocol):
     }
     
     def __init__(self, config=None):
-        self.config = config or {
-            "version": "RFB_38"
-        }
+        self.config = config or {}
+        self.config.setdefault("version", "RFB_38")
         self.protocol_name = "vnc"
         self.challenge = None
 

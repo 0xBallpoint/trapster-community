@@ -4,10 +4,9 @@ class MssqlProtocol(BaseProtocol):
 
     def __init__(self, config=None):
         self.protocol_name = "mssql"
-        self.config = config or {
-            "version": "2012",
-            "hostname": "SQL01",
-        }
+        self.config = config or {}
+        self.config.setdefault("version", "2012")
+        self.config.setdefault("hostname", "SQL01")
         
         self.versions = {
             "2008": "0A000000",  # SQL Server 2008

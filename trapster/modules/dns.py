@@ -29,9 +29,8 @@ class DnsUdpProtocol(BaseProtocol):
 
     def __init__(self, config=None):
         self.protocol_name = "dns"
-        self.config = config or {
-            'target_dns': "127.0.0.1"
-        }
+        self.config = config or {}
+        self.config.setdefault('target_dns', "127.0.0.1")
 
     def connection_made(self, transport) -> None:
         self.transport = transport
