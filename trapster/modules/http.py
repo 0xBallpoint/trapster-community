@@ -1,6 +1,6 @@
 import uvicorn
 import asyncio
-import logging
+
 from starlette.requests import ClientDisconnect
 from fastapi import FastAPI, Request, Response
 
@@ -375,6 +375,7 @@ class HttpHandler:
                 if body:
                     data = body
                     form_data = body.decode('utf-8', errors='replace')
+                    all_extra['form'] = form_data
                     
                     query_direct = self.parse_query_string(form_data)
                     for key, value in query_direct.items():
