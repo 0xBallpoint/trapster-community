@@ -21,6 +21,11 @@ PROTOCOL_HYBRID   = 0x00000002
 PROTOCOL_HYBRID_EX = 0x00000008
 
 
+def _has_content(path):
+    """True when *path* is an existing file with data (empty files don't count)."""
+    return path.is_file() and path.stat().st_size > 0
+
+
 class RdpProtocol(BaseProtocol):
 
     def __init__(self, config=None):
@@ -394,6 +399,13 @@ class RdpHoneypot(BaseHoneypot):
         self.handler.config = config
 
     def generate_certificate(self, config):
+        '''
+        Use the configured key/certificate files when both already exist.
+        Otherwise generate a self-signed pair (and write it to those paths).
+        '''
+        if _has_content(self.key_path) and _has_content(self.cert_path):
+            return
+
         self.key_path.parent.mkdir(parents=True, exist_ok=True)
         self.cert_path.parent.mkdir(parents=True, exist_ok=True)
 
