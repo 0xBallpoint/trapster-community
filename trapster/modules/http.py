@@ -1,5 +1,7 @@
 import asyncio
 import hashlib
+import ipaddress
+import logging
 import secrets
 
 from starlette.requests import ClientDisconnect
@@ -810,12 +812,125 @@ class HeaderCapitalizationMiddleware:
         await self.app(scope, receive, send_wrapper)
 
 
+class TrustedProxyMiddleware:
+    """Resolve the real client address when a trusted reverse proxy fronts
+    the service. For connections from a trusted peer the client IP is taken
+    from the X-Forwarded-For chain (rightmost non-trusted address) or from
+    X-Real-IP. Entries are IP addresses or CIDR networks.
+    Without trusted_proxies configured nothing changes."""
+
+    def __init__(self, app, trusted_proxies=None):
+        self.app = app
+        self.networks = []
+        if isinstance(trusted_proxies, str):
+            trusted_proxies = [trusted_proxies]
+        log = logging.getLogger(__name__)
+        for entry in trusted_proxies or []:
+            net = self._network(entry) if isinstance(entry, str) else None
+            if net is not None:
+                self.networks.append(net)
+                if net.prefixlen == 0:
+                    log.warning(
+                        "trusted_proxies entry %r trusts every peer; "
+                        "client-supplied headers become unreliable", entry)
+            else:
+                log.warning(
+                    "trusted_proxies entry %r ignored: expected an IP "
+                    "address or CIDR network", entry)
+
+    MAX_CHAIN_ENTRIES = 32
+
+    @staticmethod
+    def _addr(value):
+        value = value.strip()
+        if value.startswith("["):
+            end = value.find("]")
+            if end == -1:
+                return None
+            tail = value[end + 1:]
+            if tail and not (tail.startswith(":")
+                             and tail[1:].isascii() and tail[1:].isdigit()):
+                return None
+            value = value[1:end]
+        try:
+            addr = ipaddress.ip_address(value)
+        except ValueError:
+            return None
+        mapped = getattr(addr, "ipv4_mapped", None)
+        return mapped or addr
+
+    @staticmethod
+    def _network(value):
+        log = logging.getLogger(__name__)
+        try:
+            ipaddress.ip_network(value)
+        except ValueError:
+            strict_ok = False
+        else:
+            strict_ok = True
+        try:
+            net = ipaddress.ip_network(value, strict=False)
+        except ValueError:
+            return None
+        if not strict_ok:
+            log.warning(
+                "trusted_proxies entry %r has host bits set; "
+                "using %s", value, net)
+        if (net.version == 6 and net.prefixlen >= 96 and
+                net.subnet_of(ipaddress.ip_network("::ffff:0:0/96"))):
+            log.warning(
+                "trusted_proxies entry %r is IPv4-mapped and can never "
+                "match; use the IPv4 form instead", value)
+        return net
+
+    def _is_trusted(self, value):
+        addr = self._addr(value)
+        if addr is None:
+            return False
+        return any(net.version == addr.version and addr in net
+                   for net in self.networks)
+
+    def _resolve(self, scope):
+        client = scope.get("client")
+        if not (client and self.networks and self._is_trusted(client[0])):
+            return
+        xff_parts = []
+        real_ips = []
+        for name, value in scope.get("headers", []):
+            name = name.decode("latin1").lower()
+            if name == "x-forwarded-for":
+                xff_parts.append(value.decode("latin1"))
+            elif name == "x-real-ip":
+                real_ips.append(value.decode("latin1"))
+        ip = None
+        chain = ",".join(xff_parts).split(",")
+        for part in reversed(chain[-self.MAX_CHAIN_ENTRIES:]):
+            addr = self._addr(part.strip())
+            if addr is None:
+                break
+            if not self._is_trusted(part.strip()):
+                ip = str(addr)
+                break
+        if ip is None and not xff_parts and len(real_ips) == 1:
+            addr = self._addr(real_ips[0].strip())
+            if addr is not None:
+                ip = str(addr)
+        if ip is not None:
+            scope["client"] = (ip, client[1])
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "http":
+            self._resolve(scope)
+        await self.app(scope, receive, send)
+
+
 class HttpHoneypot(BaseHoneypot):
     service_name = "http"
 
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
         self.port = config['port']
+        self.trusted_proxies = config.get('trusted_proxies') or []
         self.handler = HttpHandler(config=config, logger=logger)
         self.fastapi_app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
         self.app = None  # set after route setup in start()
@@ -860,7 +975,8 @@ class HttpHoneypot(BaseHoneypot):
         async def catch_all(request: Request, path: str):
             return await self.handler.handle_request(request)
 
-        self.app = HeaderCapitalizationMiddleware(self.fastapi_app)
+        self.app = HeaderCapitalizationMiddleware(
+            TrustedProxyMiddleware(self.fastapi_app, self.trusted_proxies))
         self._shutdown_event = asyncio.Event()
         return await super().start()
 
