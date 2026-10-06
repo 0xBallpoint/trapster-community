@@ -37,7 +37,7 @@ class TrapsterManager:
         )
         ip = self.get_ip(self.config.get('interface', None))
 
-        global_vars = {k: self.config[k] for k in ('hostname', 'domain') if k in self.config}
+        global_vars = {k: self.config[k] for k in ('hostname', 'domain', 'trusted_proxies') if k in self.config}
 
         for service_type in self.config['services']:
             for service_config in self.config['services'][service_type]:

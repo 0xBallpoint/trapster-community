@@ -151,6 +151,27 @@ Elastic Common Schema format, with protocol details under `trapster.<protocol>.*
 }
 ```
 
+### Trusted reverse proxies
+
+When a reverse proxy fronts the service, events record the proxy address as
+the client. A global `trusted_proxies` option (a list of IP addresses or CIDR
+networks) makes the `X-Forwarded-For` / `X-Real-IP` headers sent by those
+peers provide the real client address:
+
+```json
+"trusted_proxies": ["127.0.0.1", "::1", "10.0.0.0/8"]
+```
+
+The client address is the rightmost non-trusted address of the
+`X-Forwarded-For` chain (repeated headers are joined in order). `X-Real-IP`
+is used only as an alternative source, when no `X-Forwarded-For` header was
+sent and `X-Real-IP` appears exactly once. Entries are bare IP addresses
+or the bracketed `[address]` / `[address]:port` forms; any other entry ends
+the walk, and only the 32 rightmost entries are considered, bounding the
+work per request. Headers sent by any other peer are ignored. A
+`trusted_proxies` entry on a service overrides the global value for that
+service. Without the option nothing changes.
+
 ### Configuration examples
 
 #### 1) Default JSON -> terminal
