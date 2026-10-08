@@ -41,7 +41,7 @@ def set_logger(config):
             # Convenience: allow flat kwargs for output and format settings.
             if output_kwargs is None:
                 output_kwargs = {}
-                for key in ("logfile", "mode", "url", "headers", "host", "port"):
+                for key in ("logfile", "mode", "persist", "url", "headers", "host", "port"):
                     if key in kwargs:
                         output_kwargs[key] = kwargs[key]
 

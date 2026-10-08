@@ -183,10 +183,12 @@ Elastic Common Schema format, with protocol details under `trapster.<protocol>.*
   "format": "default",
   "kwargs": {
     "logfile": "/var/log/trapster-community.log",
-    "mode": "a"
+    "persist": true
   }
 }
 ```
+
+With `persist: true` events are appended and the log survives restarts; without it the file starts empty on every start. A raw `mode` string is still accepted as an override. Writes are rotation-safe: when the log file is rotated (copytruncate or rename) or removed, the logger reopens it instead of writing at a stale offset.
 
 ### Retrocompatibility
 Existing logger configuration still works (`name` + `kwargs`):
@@ -227,7 +229,6 @@ place to look when writing your own. It shows, among others:
 - templates/: contains the templates for the website, it supports [jinja2](https://jinja.palletsprojects.com/en/3.1.x/) syntax.
 
 Documentation : https://docs.trapster.cloud/community/modules/web/
-
 ### Example: Fortigate
 
 The default HTTPS server shows a fortigate login page:

@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime
 import json
 import logging
+import os
 
 import httpx
 import redis
@@ -25,6 +26,7 @@ class OutputLogger(BaseLogger):
         self.output_kwargs = output_kwargs or {}
         self.format_kwargs = format_kwargs or {}
         self.file = None
+        self.logfile = None
         self.redis_client = None
         self.api_headers = None
         self.api_url = None
@@ -44,9 +46,11 @@ class OutputLogger(BaseLogger):
         if self.output == "terminal":
             return
         if self.output == "file":
-            logfile = self.output_kwargs.get("logfile", "/var/log/trapster-community.log")
-            mode = self.output_kwargs.get("mode", "w+")
-            self.file = open(logfile, mode)
+            self.logfile = self.output_kwargs.get("logfile", "/var/log/trapster-community.log")
+            mode = self.output_kwargs.get("mode")
+            if mode is None:
+                mode = "a" if self.output_kwargs.get("persist") else "w"
+            self.file = open(self.logfile, mode)
             return
         if self.output == "api":
             self.api_url = self.output_kwargs.get("url")
@@ -79,6 +83,13 @@ class OutputLogger(BaseLogger):
             self._write_redis(payload, event)
 
     def _write_file(self, payload):
+        try:
+            size = os.path.getsize(self.logfile)
+        except OSError:
+            size = -1
+        if size < self.file.tell():
+            self.file.close()
+            self.file = open(self.logfile, "a")
         try:
             json.dump(payload, self.file)
             self.file.write("\n")
