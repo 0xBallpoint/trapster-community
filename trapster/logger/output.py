@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime
 import json
 import logging
+import logging.handlers
 
 import httpx
 import redis
@@ -24,7 +25,7 @@ class OutputLogger(BaseLogger):
         self.event_format = event_format
         self.output_kwargs = output_kwargs or {}
         self.format_kwargs = format_kwargs or {}
-        self.file = None
+        self.file_logger = None
         self.redis_client = None
         self.api_headers = None
         self.api_url = None
@@ -45,8 +46,19 @@ class OutputLogger(BaseLogger):
             return
         if self.output == "file":
             logfile = self.output_kwargs.get("logfile", "/var/log/trapster-community.log")
-            mode = self.output_kwargs.get("mode", "w+")
-            self.file = open(logfile, mode)
+            mode = self.output_kwargs.get("mode", "a")
+            # WatchedFileHandler re-opens the file when it is rotated out from
+            # under us (rename or delete), and appending (mode "a") makes
+            # copytruncate safe since every write lands at the current end.
+            handler = logging.handlers.WatchedFileHandler(logfile, mode=mode)
+            handler.setFormatter(logging.Formatter("%(message)s"))
+            # Instantiate the logger directly rather than via getLogger() so it
+            # stays out of the global registry: no parent to propagate to (events
+            # don't leak to the terminal) and no duplicate handlers if several
+            # file loggers are created.
+            self.file_logger = logging.Logger(f"trapster.file.{id(self)}")
+            self.file_logger.setLevel(logging.INFO)
+            self.file_logger.addHandler(handler)
             return
         if self.output == "api":
             self.api_url = self.output_kwargs.get("url")
@@ -80,9 +92,7 @@ class OutputLogger(BaseLogger):
 
     def _write_file(self, payload):
         try:
-            json.dump(payload, self.file)
-            self.file.write("\n")
-            self.file.flush()
+            self.file_logger.info(json.dumps(payload))
         except IOError as e:
             logging.error(f"An error occurred while writing to the log file: {e}")
 
@@ -106,5 +116,6 @@ class OutputLogger(BaseLogger):
         self.redis_client.zadd("events", {json.dumps(payload): score})
 
     def __del__(self):
-        if self.file:
-            self.file.close()
+        if self.file_logger:
+            for handler in self.file_logger.handlers:
+                handler.close()

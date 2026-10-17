@@ -188,6 +188,25 @@ Elastic Common Schema format, with protocol details under `trapster.<protocol>.*
 }
 ```
 
+The file logger appends (`mode: "a"`), so the log survives restarts, and it writes
+through a `WatchedFileHandler` that reopens the file when it is rotated out from
+under it. Rotation is left to the system; a `logrotate` drop-in is all you need:
+
+```
+/var/log/trapster-community.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+}
+```
+
+`delaycompress` matters here: it keeps the just-rotated file uncompressed for one
+cycle, so the handler always has a readable file to reopen on its next write. No
+`copytruncate` or `postrotate` HUP is required.
+
 ### Retrocompatibility
 Existing logger configuration still works (`name` + `kwargs`):
 ```json
