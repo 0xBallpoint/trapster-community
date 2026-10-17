@@ -6,7 +6,7 @@ class FileLogger(OutputLogger):
         self,
         node_id,
         logfile="/var/log/trapster-community.log",
-        mode="w+",
+        mode="a",
         event_format="default",
         format_kwargs=None,
     ):
