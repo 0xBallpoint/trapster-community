@@ -387,8 +387,8 @@ class RdpHoneypot(BaseHoneypot):
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
 
-        self.key_path  = Path(config.get("key",         "trapster/data/ssl/rdp/key.pem"))
-        self.cert_path = Path(config.get("certificate", "trapster/data/ssl/rdp/certificate.pem"))
+        self.key_path  = Path(config.get("key")         or "trapster/data/ssl/rdp/key.pem")
+        self.cert_path = Path(config.get("certificate") or "trapster/data/ssl/rdp/certificate.pem")
         self.generate_certificate(config)
 
         config["key_path"]  = str(self.key_path)

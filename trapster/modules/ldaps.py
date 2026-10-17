@@ -24,8 +24,8 @@ class LdapsHoneypot(LdapHoneypot):
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
 
-        self.key_path  = Path(config.get("key",         "trapster/data/ssl/ldaps/key.pem"))
-        self.cert_path = Path(config.get("certificate", "trapster/data/ssl/ldaps/certificate.pem"))
+        self.key_path  = Path(config.get("key")         or "trapster/data/ssl/ldaps/key.pem")
+        self.cert_path = Path(config.get("certificate") or "trapster/data/ssl/ldaps/certificate.pem")
 
         cn = f"{config.get('hostname', 'DC01')}.{config.get('domain', 'corp.local')}"
         self.generate_certificate(cn)
