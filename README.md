@@ -163,14 +163,14 @@ peers provide the real client address:
 ```
 
 The client address is the rightmost non-trusted address of the
-`X-Forwarded-For` chain (repeated headers are joined in order). `X-Real-IP`
-is used only as an alternative source, when no `X-Forwarded-For` header was
-sent and `X-Real-IP` appears exactly once. Entries are bare IP addresses
-or the bracketed `[address]` / `[address]:port` forms; any other entry ends
-the walk, and only the 32 rightmost entries are considered, bounding the
-work per request. Headers sent by any other peer are ignored. A
-`trusted_proxies` entry on a service overrides the global value for that
-service. Without the option nothing changes.
+`X-Forwarded-For` chain (repeated headers are joined in order); any
+unparseable entry ends the walk. `X-Real-IP` is used only as an alternative
+source, when no `X-Forwarded-For` header was sent and `X-Real-IP` appears
+exactly once. Headers sent by any other peer are ignored. A `trusted_proxies`
+entry on a service overrides the global value for that service. Without the
+option nothing changes.
+
+Configure your proxy to strip or overwrite inbound `X-Forwarded-For` / `X-Real-IP` headers, otherwise a client behind the proxy can forge them and spoof the recorded address.
 
 ### Configuration examples
 

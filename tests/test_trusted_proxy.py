@@ -146,38 +146,6 @@ class TrustedProxyMiddlewareTests(unittest.TestCase):
                                                 trusted_proxies=["0.0.0.0/0"])
         self.assertEqual(len(middleware.networks), 1)
 
-    def test_bracketed_v6_resolved(self):
-        self.assertEqual(
-            self.resolve(["127.0.0.1"], ("127.0.0.1", 1000),
-                         {"X-Forwarded-For": "[2001:db8::1]"}),
-            "2001:db8::1")
-
-    def test_bracketed_v6_with_port_resolved(self):
-        self.assertEqual(
-            self.resolve(["127.0.0.1"], ("127.0.0.1", 1000),
-                         {"X-Forwarded-For": "[2001:db8::1]:443"}),
-            "2001:db8::1")
-
-    def test_unterminated_bracket_ends_walk(self):
-        self.assertEqual(
-            self.resolve(["10.0.0.0/8"], ("10.1.2.3", 1000),
-                         {"X-Forwarded-For": "[2001:db8::1"}),
-            "10.1.2.3")
-
-    def test_long_chain_window_capped(self):
-        chain = "203.0.113.7," + ",".join(["127.0.0.1"] * 40)
-        self.assertEqual(
-            self.resolve(["127.0.0.0/8", "10.0.0.0/8"], ("10.1.2.3", 1000),
-                         {"X-Forwarded-For": chain}),
-            "10.1.2.3")
-
-    def test_chain_within_window_resolved(self):
-        chain = "203.0.113.7," + ",".join(["127.0.0.1"] * 31)
-        self.assertEqual(
-            self.resolve(["127.0.0.1"], ("127.0.0.1", 1000),
-                         {"X-Forwarded-For": chain}),
-            "203.0.113.7")
-
     def test_port_preserved(self):
         middleware = TrustedProxyMiddleware(app=None,
                                             trusted_proxies=["127.0.0.1"])
@@ -214,12 +182,6 @@ class TrustedProxyMiddlewareTests(unittest.TestCase):
             middleware = TrustedProxyMiddleware(
                 app=None, trusted_proxies=["10.0.0.1/8"])
         self.assertEqual(str(middleware.networks[0]), "10.0.0.0/8")
-
-    def test_mapped_network_warns(self):
-        with self.assertLogs(level="WARNING"):
-            middleware = TrustedProxyMiddleware(
-                app=None, trusted_proxies=["::ffff:127.0.0.1/128"])
-        self.assertEqual(len(middleware.networks), 1)
 
 
 class CaptureLogger(JsonLogger):

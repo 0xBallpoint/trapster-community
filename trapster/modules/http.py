@@ -824,63 +824,35 @@ class TrustedProxyMiddleware:
         self.networks = []
         if isinstance(trusted_proxies, str):
             trusted_proxies = [trusted_proxies]
-        log = logging.getLogger(__name__)
         for entry in trusted_proxies or []:
             net = self._network(entry) if isinstance(entry, str) else None
-            if net is not None:
-                self.networks.append(net)
-                if net.prefixlen == 0:
-                    log.warning(
-                        "trusted_proxies entry %r trusts every peer; "
-                        "client-supplied headers become unreliable", entry)
-            else:
-                log.warning(
-                    "trusted_proxies entry %r ignored: expected an IP "
-                    "address or CIDR network", entry)
-
-    MAX_CHAIN_ENTRIES = 32
+            if net is None:
+                logging.warning("trusted_proxies entry %r ignored: expected an IP address or CIDR network", entry)
+                continue
+            self.networks.append(net)
+            if net.prefixlen == 0:
+                logging.warning("trusted_proxies entry %r trusts every peer; client-supplied headers become unreliable", entry)
 
     @staticmethod
     def _addr(value):
-        value = value.strip()
-        if value.startswith("["):
-            end = value.find("]")
-            if end == -1:
-                return None
-            tail = value[end + 1:]
-            if tail and not (tail.startswith(":")
-                             and tail[1:].isascii() and tail[1:].isdigit()):
-                return None
-            value = value[1:end]
         try:
-            addr = ipaddress.ip_address(value)
+            addr = ipaddress.ip_address(value.strip())
         except ValueError:
             return None
-        mapped = getattr(addr, "ipv4_mapped", None)
-        return mapped or addr
+        # Dual-stack sockets report IPv4 peers as ::ffff:a.b.c.d; match them
+        # against the IPv4 networks the operator configured.
+        return getattr(addr, "ipv4_mapped", None) or addr
 
     @staticmethod
     def _network(value):
-        log = logging.getLogger(__name__)
-        try:
-            ipaddress.ip_network(value)
-        except ValueError:
-            strict_ok = False
-        else:
-            strict_ok = True
         try:
             net = ipaddress.ip_network(value, strict=False)
         except ValueError:
             return None
-        if not strict_ok:
-            log.warning(
-                "trusted_proxies entry %r has host bits set; "
-                "using %s", value, net)
-        if (net.version == 6 and net.prefixlen >= 96 and
-                net.subnet_of(ipaddress.ip_network("::ffff:0:0/96"))):
-            log.warning(
-                "trusted_proxies entry %r is IPv4-mapped and can never "
-                "match; use the IPv4 form instead", value)
+        try:
+            ipaddress.ip_network(value)  # strict parse rejects host bits
+        except ValueError:
+            logging.warning("trusted_proxies entry %r has host bits set; using %s", value, net)
         return net
 
     def _is_trusted(self, value):
@@ -903,16 +875,15 @@ class TrustedProxyMiddleware:
             elif name == "x-real-ip":
                 real_ips.append(value.decode("latin1"))
         ip = None
-        chain = ",".join(xff_parts).split(",")
-        for part in reversed(chain[-self.MAX_CHAIN_ENTRIES:]):
-            addr = self._addr(part.strip())
+        for part in reversed(",".join(xff_parts).split(",")):
+            addr = self._addr(part)
             if addr is None:
                 break
-            if not self._is_trusted(part.strip()):
+            if not self._is_trusted(part):
                 ip = str(addr)
                 break
         if ip is None and not xff_parts and len(real_ips) == 1:
-            addr = self._addr(real_ips[0].strip())
+            addr = self._addr(real_ips[0])
             if addr is not None:
                 ip = str(addr)
         if ip is not None:
