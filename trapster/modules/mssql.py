@@ -1,4 +1,6 @@
 from trapster.modules.base import BaseProtocol, BaseHoneypot
+from trapster.libs.ntlm import build_ntlm_type2, extract_ntlm, parse_ntlm_type3
+import os
 
 class MssqlProtocol(BaseProtocol):
 
@@ -7,7 +9,7 @@ class MssqlProtocol(BaseProtocol):
         self.config = config or {}
         self.config.setdefault("version", "2012")
         self.config.setdefault("hostname", "SQL01")
-        
+
         self.versions = {
             "2008": "0A000000",  # SQL Server 2008
             "2012": "0B000000",  # SQL Server 2012
@@ -19,6 +21,8 @@ class MssqlProtocol(BaseProtocol):
         }
         self.version = self.versions.get(self.config.get("version", "2012"), "0B000000")
         self.hostname = self.config.get("hostname", "SQL01")
+        self.domain = self.config.get("domain") or "corp.local"
+        self.ntlm_challenge = None
 
     def connection_made(self, transport):
         self.transport = transport
@@ -26,13 +30,12 @@ class MssqlProtocol(BaseProtocol):
 
     def data_received(self, data):
         self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
-        
         if len(data) < 1:
             self.transport.close()
             return
         
         packet_type = data[0]
-        
+
         if packet_type == 0x12:  # PRELOGIN
             self.pre_login(data)
         elif packet_type == 0x10:  # LOGIN7
@@ -43,6 +46,8 @@ class MssqlProtocol(BaseProtocol):
         elif packet_type == 0x80:  # SQL Browser packet
             # Close - not SQL Browser service
             self.transport.close()
+        elif packet_type == 0x11:  # SSPI (NTLM AUTHENTICATE)
+            self.ntlm_authenticate(data)
         else:
             # Unknown packet type
             self.transport.close()
@@ -56,11 +61,40 @@ class MssqlProtocol(BaseProtocol):
             )
         )
 
-    def login(self, data):
+    def ntlm_authenticate(self, data):
         try:
+            ntlm = extract_ntlm(data)
+            if not ntlm:
+                raise ValueError("no NTLM message in SSPI packet")
+            username, domain = parse_ntlm_type3(ntlm)
+            self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username": username, "domain": domain})
+
+            user = f"{domain}\\{username}" if domain else username
+            auth_response = self.generate_login_error("Login failed for user '" + user + "'.", 18456)
+            self.transport.write(auth_response)
+        except Exception as e:
+            # If extraction fails, just log the raw data
+            self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
+        finally:
+            self.transport.close()
+
+    def login(self, data):
+        wait_ntlm3 = False
+        try:
+            ntlm = extract_ntlm(data)
+            if ntlm and len(ntlm) >= 12:
+                ntlm_type = int.from_bytes(ntlm[8:12], 'little')
+                if ntlm_type == 1:
+                    # Kept for the AUTHENTICATE step (NetNTLMv2 hash reconstruction)
+                    self.ntlm_challenge = os.urandom(8)
+                    type2 = build_ntlm_type2(self.ntlm_challenge, self.hostname, self.domain, self.domain.split('.'))
+                    token = b'\xed' + len(type2).to_bytes(2, 'little') + type2
+                    header = b'\x04\x01' + (len(token) + 8).to_bytes(2, 'big') + b'\x00\x35\x01\x00'
+                    self.transport.write(header + token)
+                    wait_ntlm3 = True
+                    return
             credentials = self.extract_credentials(data)
             self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra=credentials)
-            
             auth_response = self.generate_login_error("Login failed for user '" + credentials['username'] + "'.", 18456)
             self.transport.write(auth_response)
         except Exception as e:
@@ -68,7 +102,8 @@ class MssqlProtocol(BaseProtocol):
             self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
         finally:
             # Always close connection after login attempt
-            self.transport.close()
+            if not wait_ntlm3:
+                self.transport.close()
 
     def decrypt_mssql_password(self, encrypted):
         # The decryption is done with a simple XOR and nibble swap
