@@ -69,7 +69,7 @@
     {
       // openai is capped (<1.99.0) on purpose for openai-agents
       matchDatasources: ['pypi'],
-      matchPackageNames: ['openai'],
+      matchPackageNames: ['openai', 'openai-agents'],
       enabled: false,
     },
   ],

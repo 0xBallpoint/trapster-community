@@ -70,7 +70,7 @@ bash scripts/trapster-wizard.sh
 From a checkout: uv installs the locked, hash-checked dependencies into a `.venv` virtualenv, then Trapster runs with that venv's Python:
 
 ```bash
-uv sync --locked --no-build --no-install-project --extra ai
+uv sync --locked --no-build --no-install-project
 source .venv/bin/activate
 bash scripts/trapster-wizard.sh
 python main.py -c ./trapster.generated.conf

@@ -75,7 +75,7 @@ jobs:
       # Same options as the Dockerfile: hash-checked, wheels only, refuses an
       # out-of-date uv.lock.
       - name: Install locked dependencies
-        run: uv sync --locked --no-build --no-install-project --extra ai
+        run: uv sync --locked --no-build --no-install-project
       - name: Run tests
         run: uv run --no-sync python -m unittest discover -s tests -t . -v
 
