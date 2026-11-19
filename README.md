@@ -67,17 +67,16 @@ You can start from the example **`trapster/data/trapster.conf`**, or run the hel
 bash scripts/trapster-wizard.sh
 ```
 
-From a checkout, with a venv:
+From a checkout: uv installs the locked, hash-checked dependencies into a `.venv` virtualenv, then Trapster runs with that venv's Python:
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+uv sync --locked --no-build --no-install-project --extra ai
+source .venv/bin/activate
 bash scripts/trapster-wizard.sh
 python main.py -c ./trapster.generated.conf
 ```
 
-Or install the package in editable mode (`pip install -e .`) and run `trapster -c ./trapster.generated.conf`.
+Without uv, `pip install -e .` in a venv also works, but installs the newest versions allowed by `pyproject.toml` instead of the locked ones.
 
 The example configuration listens on well-known ports; binding them usually requires elevated privileges. Run as **root**, or use **`sudo -E`** (keeps your environment, e.g. an activated venv) when starting Trapster with Python.
 
@@ -350,7 +349,7 @@ By default, if you set `AI_MEMORY_ENABLE=true`, then the database will be in `tr
 
 You can also use `OPENAI_API_KEY` directly if you want to use the default `o4-mini` model:
 ```bash
-export OPENAI_API_KEY=... && venv/bin/python3 main.py
+export OPENAI_API_KEY=... && .venv/bin/python3 main.py
 ```
 
 ### AI for SSH

@@ -1,8 +1,8 @@
 import asyncio
-from datetime import datetime
 import json
 import logging
 import logging.handlers
+from datetime import datetime
 
 import httpx
 import redis
@@ -75,7 +75,9 @@ class OutputLogger(BaseLogger):
             f"Unsupported output '{self.output}'. Supported outputs: terminal, file, api, redis."
         )
 
-    def log(self, logtype, transport, data='', extra={}):
+    def log(self, logtype, transport, data='', extra=None):
+        if extra is None:
+            extra = {}
         event = self.parse_log(logtype, transport, data, extra)
         if not event:
             return
@@ -93,7 +95,7 @@ class OutputLogger(BaseLogger):
     def _write_file(self, payload):
         try:
             self.file_logger.info(json.dumps(payload))
-        except IOError as e:
+        except OSError as e:
             logging.error(f"An error occurred while writing to the log file: {e}")
 
     def _post_api(self, payload):

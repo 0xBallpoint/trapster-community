@@ -168,3 +168,5 @@ ssh_host_*
 *.pem
 *.db
 trapster.generated.conf
+
+trapster/data/http/*

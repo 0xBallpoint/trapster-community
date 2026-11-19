@@ -1,6 +1,8 @@
-from trapster.modules.base import BaseProtocol, BaseHoneypot
-from trapster.libs.ntlm import build_ntlm_type2, extract_ntlm, parse_ntlm_type3
 import os
+
+from trapster.libs.ntlm import build_ntlm_type2, extract_ntlm, parse_ntlm_type3
+from trapster.modules.base import BaseHoneypot, BaseProtocol
+
 
 class MssqlProtocol(BaseProtocol):
 
@@ -72,7 +74,7 @@ class MssqlProtocol(BaseProtocol):
             user = f"{domain}\\{username}" if domain else username
             auth_response = self.generate_login_error("Login failed for user '" + user + "'.", 18456)
             self.transport.write(auth_response)
-        except Exception as e:
+        except Exception:
             # If extraction fails, just log the raw data
             self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
         finally:
@@ -97,7 +99,7 @@ class MssqlProtocol(BaseProtocol):
             self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra=credentials)
             auth_response = self.generate_login_error("Login failed for user '" + credentials['username'] + "'.", 18456)
             self.transport.write(auth_response)
-        except Exception as e:
+        except Exception:
             # If extraction fails, just log the raw data
             self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
         finally:

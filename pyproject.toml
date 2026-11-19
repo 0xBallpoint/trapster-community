@@ -1,0 +1,132 @@
+
+[build-system]
+# Pinned, and kept equal to the "build" group below: the release workflow
+requires = ["setuptools==84.2.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trapster"
+dynamic = ["version"]
+description = "Trapster Daemon"
+readme = "README.md"
+license = { text = "AGPL3" }
+authors = [{ name = "0xBallpoint", email = "contact@ballpoint.fr" }]
+# Python version of the Docker image (python:3.11-slim).
+requires-python = ">=3.11"
+keywords = ["trapster", "honeypot", "ballpoint", "deceptive", "security", "network"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Framework :: AsyncIO",
+    "Topic :: System :: Networking",
+    "Topic :: Security",
+    "Topic :: System :: Networking :: Monitoring",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+]
+dependencies = [
+    "httpx>=0.27.0",
+    "psutil>=5.9.8",
+    "pyasn1>=0.4.8",
+    "redis>=5.0.4",
+    "cryptography>=43.0.1",
+    "asyncssh>=2.14.2",
+    "scapy>=2.5.0",
+    "jinja2>=3.1.4",
+    "PyYAML>=6.0.2",
+    "fastapi>=0.115.9",
+    "hypercorn>=0.17.0",
+]
+
+[project.optional-dependencies]
+ai = [
+    # Capped on purpose for openai-agents: moving the cap is done by hand.
+    "openai<1.99.0",
+    "openai-agents>=0.2.5",
+]
+
+# Locked with the dependencies above, never installed by default (uv sync
+# installs no group unless asked) and never published to PyPI.
+[dependency-groups]
+# Package build for the release workflow (publish.yml).
+build = [
+    "setuptools==84.2.1",
+]
+# Dev and CI only tools.
+dev = [
+    "ruff==0.17.4",
+]
+
+[project.urls]
+Homepage = "https://trapster.cloud/"
+
+[project.scripts]
+trapster = "trapster.trapster:main"
+
+[tool.setuptools]
+platforms = ["linux"]
+# Data files listed in MANIFEST.in (module resources, trapster.conf).
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { attr = "trapster.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["trapster", "trapster.*"]
+
+[tool.uv]
+# No group is installed unless asked for (--group), so the Docker image never
+# gets the build or dev tools.
+default-groups = []
+# Supply-chain cooldown: only versions published at least 7 days ago may
+# enter uv.lock.
+exclude-newer = "P7D"
+# Urgent security fix released less than 7 days ago: lift the cooldown for
+# that one package only, with the reason, then run
+# `UPGRADE=<name> scripts/python-lock.sh`. Remove the entry once the release
+# is 7 days old. 
+# exclude-newer-package = { httpx = false }  # CVE-XXXX-YYYY
+
+# Run with:
+#   uv sync --locked --no-build --no-install-project --group dev
+#   uv run --no-sync ruff check
+[tool.ruff]
+target-version = "py311"
+line-length = 119
+extend-exclude = [".venv", "venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = [
+    "F",     # pyflakes: unused imports, undefined names, etc.
+    "E7",    # statement issues (bare except, is None, type checks)
+    "E9",    # syntax errors
+    "B",     # bugbear: common gotchas
+    "ASYNC", # async pitfalls
+    "S",     # bandit: security
+    "UP",    # pyupgrade: modern syntax for the target version
+    "SIM",   # simplify: unnecessary complexity
+    "RET",   # return statement issues
+    "I",     # isort: import ordering
+    "PERF",  # performance anti-patterns
+]
+ignore = [
+    "S101",   # assert in tests
+    "S104",   # honeypots intentionally bind to all interfaces
+    "S110",   # best-effort reads; logging would add noise
+    "S311",   # random is used for non-crypto emulation (delays, ids)
+    "S324",   # md5 is a skin template helper, not a security hash
+    "RET504", # naming a value before returning it is often the clearer form
+    "SIM102", # nested ifs read better than one long condition
+    "SIM103",
+    "SIM105",
+    "SIM108", # if/else vs ternary is a readability call, not a defect
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["trapster"]

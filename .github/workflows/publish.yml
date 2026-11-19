@@ -1,5 +1,12 @@
 name: Upload Python Package
 
+# Builds and publishes trapster to PyPI when a GitHub release is published.
+#
+# Two jobs, so the PyPI credential (id-token) never exists while the build
+# runs: "build" makes the files with no write access to anything, "publish"
+# only uploads them. Every action is pinned to a commit SHA, and the build
+# tool (setuptools) is installed hash-checked from uv.lock, never downloaded
+# unchecked.
 on:
   release:
     types: [published]
@@ -7,23 +14,64 @@ on:
 permissions:
   contents: read
 
+env:
+  # Same uv as ci.yml, the Dockerfile and Renovate (constraints.uv).
+  UV_VERSION: '0.13.9'
+  # Use the runner's Python (setup-python), never one downloaded by uv.
+  UV_PYTHON_DOWNLOADS: never
+
 jobs:
-  deploy:
+  build:
+    name: Build distribution
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.11'
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      # Only the "build" group (setuptools), hash-checked from uv.lock, wheels
+      # only. --locked refuses an uv.lock out of date with pyproject.toml.
+      - name: Install locked build tools
+        run: uv sync --locked --no-build --no-install-project --only-group build
+      # --no-build-isolation: build with the setuptools installed above
+      # instead of letting the build download its own.
+      - name: Build package
+        run: uv build --no-build-isolation
+      # Refuse to publish files whose version is not the release's tag
+      # (v1.2.3 -> trapster-1.2.3), e.g. a forgotten __version__ bump.
+      - name: Check version matches the release tag
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          test -f "dist/trapster-${TAG#v}-py3-none-any.whl" \
+            || { echo "dist/ does not contain version ${TAG#v}:"; ls dist; exit 1; }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    # Require a reviewer on this environment (Settings > Environments >
+    # release) so a release is never published by one person alone.
     environment: release
     permissions:
+      # PyPI trusted publishing: a short-lived token, no stored PyPI secret.
+      # The action also publishes signed attestations (PEP 740) for the files.
       id-token: write
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.x'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build
-    - name: Build package
-      run: python -m build
-    - name: Publish package 
-      uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: dist
+          path: dist/
+      - name: Publish package
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3

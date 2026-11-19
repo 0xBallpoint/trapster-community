@@ -1,12 +1,33 @@
+import argparse
 import asyncio
-import psutil
-import argparse, json, socket, os
+import json
 import logging
+import os
+import socket
 import ssl
 
+import psutil
+
 from . import __version__
-from .modules import *
 from .logger import set_logger
+from .modules import (
+    DnsHoneypot,
+    FtpHoneypot,
+    HttpHoneypot,
+    HttpsHoneypot,
+    LdapHoneypot,
+    LdapsHoneypot,
+    MssqlHoneypot,
+    MysqlHoneypot,
+    PostgresHoneypot,
+    RdpHoneypot,
+    RsyncHoneypot,
+    SnmpHoneypot,
+    SshHoneypot,
+    TelnetHoneypot,
+    VncHoneypot,
+)
+
 
 class TrapsterManager:
     def __init__(self, config):
@@ -82,8 +103,8 @@ class TrapsterManager:
                 except Exception as e:
                     logging.error(f"Error starting {service_type}: {e}")
         
-        while True:
-            await asyncio.sleep(10)
+        # Keep running until the process is stopped
+        await asyncio.Event().wait()
 
 def list_interfaces():
     interfaces = psutil.net_if_addrs()
@@ -103,7 +124,7 @@ def load_config(config_path):
         logging.error(f'Config file {config_path} not found')
         return None
     
-    with open(config_path, 'r') as f:
+    with open(config_path) as f:
         return json.load(f)
     
 def main():
@@ -139,7 +160,7 @@ def main():
         return
 
     logger = set_logger(config)
-    if logger == None:
+    if logger is None:
         return
       
     manager = TrapsterManager(config)

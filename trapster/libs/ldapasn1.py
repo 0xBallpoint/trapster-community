@@ -19,8 +19,8 @@
 #   Alberto Solino (@agsolino)
 #   Kacper Nowak (@kacpern)
 #
-from pyasn1.codec.ber import encoder, decoder
-from pyasn1.type import univ, namedtype, namedval, tag, constraint
+from pyasn1.codec.ber import decoder, encoder
+from pyasn1.type import constraint, namedtype, namedval, tag, univ
 
 __all__ = [
     'CONTROL_PAGEDRESULTS', 'CONTROL_SDFLAGS', 'KNOWN_CONTROLS', 'NOTIFICATION_DISCONNECT', 'KNOWN_NOTIFICATIONS',
@@ -61,6 +61,7 @@ class DefaultSequenceAndSetBaseMixin:
                 if component is None:
                     return self.setComponentByPosition(idx).getComponentByPosition(idx)# , default, instantiate)
                 return component
+        return None
 
 
 class ResultCode(univ.Enumerated):
@@ -568,7 +569,7 @@ class Control(univ.Sequence):
         r = univ.Sequence.prettyPrint(self, scope)
         decodedControlValue = self.decodeControlValue()
         if decodedControlValue is not None:
-            r = r[:r.rindex('=') + 1] + '%s\n' % decodedControlValue.prettyPrint(scope + 1)
+            r = r[:r.rindex('=') + 1] + f'{decodedControlValue.prettyPrint(scope + 1)}\n'
         return r
 
 

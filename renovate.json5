@@ -1,0 +1,115 @@
+// Renovate opens pull requests that update dependencies 
+// Policy: weekly grouped PRs, security fixes right away, 7-day cooldown on
+// everything, no automerge.
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  // pinGitHubActionDigests: every action is pinned to a commit SHA 
+  extends: ['config:recommended', 'helpers:pinGitHubActionDigests'],
+  timezone: 'Europe/Paris',
+  labels: ['dependencies'],
+
+  // Regular updates are opened once a week. Renovate still runs more often so
+  // that security fixes (below) and the Dependency Dashboard stay current.
+  schedule: ['before 6am on monday'],
+
+  // No automerge
+  automerge: false,
+
+  // Do not even create the branch before the cooldown below has passed.
+  internalChecksFilter: 'strict',
+
+  // PR on Known vulnerabilities
+  osvVulnerabilityAlerts: true,
+
+  // List every known vulnerability in the Dependency Dashboard issue
+  dependencyDashboardOSVVulnerabilitySummary: 'all',
+  vulnerabilityAlerts: {
+    labels: ['dependencies', 'security'],
+    // Renovate drops the cooldown for security fixes by default
+    minimumReleaseAge: '7 days',
+  },
+
+  packageRules: [
+    {
+      // 7-day cooldown on every version Renovate proposes 
+      matchUpdateTypes: ['major', 'minor', 'patch', 'pin', 'pinDigest', 'digest'],
+      minimumReleaseAge: '7 days',
+    },
+
+    {
+      // trapster is published on PyPI, so pyproject.toml keeps version
+      // ranges (>=) for pip users. 
+      matchManagers: ['pep621'],
+      rangeStrategy: 'update-lockfile',
+    },
+
+    // One weekly PR per ecosystem for minor and patch updates
+    {
+      matchManagers: ['pep621'],
+      matchUpdateTypes: ['minor', 'patch'],
+      groupName: 'Python (non-major)',
+    },
+    {
+      matchDatasources: ['docker'],
+      matchUpdateTypes: ['minor', 'patch', 'digest'],
+      groupName: 'Docker images (non-major)',
+    },
+    {
+      matchManagers: ['github-actions'],
+      matchUpdateTypes: ['minor', 'patch', 'digest'],
+      groupName: 'GitHub Actions (non-major)',
+    },
+
+    {
+      matchDatasources: ['docker'],
+      matchPackageNames: ['python', 'ghcr.io/astral-sh/uv'],
+      matchUpdateTypes: ['major', 'minor'],
+      enabled: false,
+    },
+    {
+      // openai is capped (<1.99.0) on purpose for openai-agents
+      matchDatasources: ['pypi'],
+      matchPackageNames: ['openai'],
+      enabled: false,
+    },
+  ],
+
+  // uv version Renovate uses to regenerate uv.lock
+  constraints: {
+    uv: '0.13.9',
+  },
+
+  // Python dependencies live in pyproject.toml and uv.lock. 
+  pep621: {
+    // Weekly refresh of every locked Python package, within the cooldown set
+    // in pyproject.toml.
+    lockFileMaintenance: {
+      enabled: true,
+    },
+  },
+
+  customManagers: [
+    {
+      // uv used by scripts/python-lock.sh and the workflows. The Dockerfile
+      // copies uv from the image of the same version; keep them aligned. 
+      customType: 'regex',
+      managerFilePatterns: [
+        '/(^|/)scripts/python-lock\\.sh$/',
+        '/(^|/)\\.github/workflows/(ci|publish)\\.yml$/',
+      ],
+      // UV_VERSION=0.13.9 (shell) or UV_VERSION: '0.13.9' (YAML)
+      matchStrings: ["UV_VERSION[=:] ?'?(?<currentValue>\\d[^'\\s]*)"],
+      depNameTemplate: 'ghcr.io/astral-sh/uv',
+      datasourceTemplate: 'docker',
+    },
+    {
+      // uv version Renovate itself uses (constraints.uv above).
+      customType: 'regex',
+      managerFilePatterns: ['/(^|/)renovate\\.json5$/'],
+      // \d: must not match this pattern itself.
+      matchStrings: ["uv: '(?<currentValue>\\d[^']*)'"],
+      depNameTemplate: 'ghcr.io/astral-sh/uv',
+      datasourceTemplate: 'docker',
+    },
+  ],
+}

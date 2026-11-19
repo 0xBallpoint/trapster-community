@@ -1,12 +1,13 @@
-from trapster.modules.base import BaseProtocol, BaseHoneypot
-from trapster.libs import ldapasn1
-from trapster.libs.ntlm import build_ntlm_type2, wrap_spnego, extract_ntlm, parse_ntlm_type3
+import os
+import random
+from datetime import UTC, datetime
 
 from pyasn1.codec.ber import decoder
+from pyasn1.error import PyAsn1Error
 
-from datetime import datetime, timezone
-import random
-import os
+from trapster.libs import ldapasn1
+from trapster.libs.ntlm import build_ntlm_type2, extract_ntlm, parse_ntlm_type3, wrap_spnego
+from trapster.modules.base import BaseHoneypot, BaseProtocol
 
 
 class LdapProtocol(BaseProtocol):
@@ -276,10 +277,7 @@ class LdapProtocol(BaseProtocol):
 
         if name in ('and', 'or'):
             # match if any sub-filter matches (conservative: return True if any child matches)
-            for child in filter_component[name]:
-                if self._filter_matches_rootdse(child):
-                    return True
-            return False
+            return any(self._filter_matches_rootdse(child) for child in filter_component[name])
 
         if name == 'not':
             return not self._filter_matches_rootdse(filter_component['not'])
@@ -292,7 +290,8 @@ class LdapProtocol(BaseProtocol):
                 attr = str(filter_component[field]['attributeDesc'] if field != 'substrings'
                            else filter_component[field]['type']).lower()
                 return attr in self._ROOTDSE_ATTRIBUTES
-            except Exception:
+            except (PyAsn1Error, KeyError):
+                # not the alternative this filter uses
                 continue
 
         return True  # unrecognised — let it through
@@ -322,9 +321,7 @@ class LdapProtocol(BaseProtocol):
                 return msg
 
             attributes = protocolOp['searchRequest']['attributes']
-            attributes_search_values = []
-            for attr in attributes:
-                attributes_search_values.append(attr._value.decode(errors='backslashreplace'))
+            attributes_search_values = [attr._value.decode(errors='backslashreplace') for attr in attributes]
 
             msg = self.searchresentry_response(attributes_search_values)
 
@@ -390,7 +387,7 @@ class LdapProtocol(BaseProtocol):
             'dsServiceName': f"CN=NTDS Settings,CN={self._hostname},CN=Servers,CN=Default-First-Site-Name,CN=Sites,CN=Configuration,{dc_str}",
             'dnsHostName': f"{self._hostname}.{self._fqdn}",
             'defaultNamingContext': dc_str,
-            'currentTime': datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S.0Z'),
+            'currentTime': datetime.now(UTC).strftime('%Y%m%d%H%M%S.0Z'),
             'configurationNamingContext': f"CN=Configuration,{dc_str}"
         }
   

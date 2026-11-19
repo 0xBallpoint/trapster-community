@@ -1,10 +1,12 @@
-from typing import Dict, Any
-import logging
 import json
-from agents import (
-    Runner
-)
+import logging
+from typing import Any
+
+from agents import Runner
+
 from trapster.ai.base import ai_agent
+
+
 class SSHAgent(ai_agent):
     """OpenAI-Agents implementation of an SSH-like shell agent.
 
@@ -49,7 +51,7 @@ class SSHAgent(ai_agent):
     Assistant: {{"directory": "/home/{self.username}/", "command_result": "Desktop Documents Downloads Music Pictures Public Templates Videos"}}
     """)
 
-    async def make_query(self, session_id: str, command: str) -> Dict[str, Any]:
+    async def make_query(self, session_id: str, command: str) -> dict[str, Any]:
         result = await Runner.run(self, command, session=self._ensure_session(session_id))
         output = result.final_output
 
@@ -58,8 +60,8 @@ class SSHAgent(ai_agent):
         try:
             json_output = json.loads(output)
             return json_output
-        except Exception as e:
-            logging.error(f"Error parsing AI response as JSON")
+        except Exception:
+            logging.error("Error parsing AI response as JSON")
 
             # Remove failed command from history to avoid contaminating future responses
             session = self._ensure_session(session_id)

@@ -6,9 +6,7 @@ References:
   [MS-SPNG] Simple and Protected GSS-API Negotiation Mechanism (SPNEGO)
 """
 
-import os
 import struct
-
 
 # ---------------------------------------------------------------------------
 # DER length encoding (used by SPNEGO wrapper)
@@ -18,10 +16,9 @@ def der_len(n):
     """Encode an integer as a DER length field."""
     if n < 0x80:
         return bytes([n])
-    elif n < 0x100:
+    if n < 0x100:
         return bytes([0x81, n])
-    else:
-        return bytes([0x82, n >> 8, n & 0xff])
+    return bytes([0x82, n >> 8, n & 0xff])
 
 
 # ---------------------------------------------------------------------------

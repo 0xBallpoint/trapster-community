@@ -1,15 +1,13 @@
-from trapster.modules.http import HttpHandler, HttpHoneypot, HeaderCapitalizationMiddleware
-
-import asyncio
-from fastapi import Request
-from pathlib import Path
 import datetime
+from pathlib import Path
 
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization, hashes
 from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
+
+from trapster.modules.http import HttpHandler, HttpHoneypot
 
 
 def _has_content(path):

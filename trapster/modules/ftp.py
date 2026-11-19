@@ -1,4 +1,5 @@
-from trapster.modules.base import BaseProtocol, BaseHoneypot
+from trapster.modules.base import BaseHoneypot, BaseProtocol
+
 
 class FtpProtocol(BaseProtocol):
 
@@ -30,7 +31,7 @@ class FtpProtocol(BaseProtocol):
     
         if cmd == 'USER':
             self.user = client_input
-            self.transport.write("331 User {} OK. Password required\r\n".format(client_input).encode())
+            self.transport.write(f"331 User {client_input} OK. Password required\r\n".encode())
         elif cmd == 'PASS':
             self.handle_password(client_input)
         elif cmd == 'SYST':

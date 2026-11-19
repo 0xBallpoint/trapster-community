@@ -1,6 +1,9 @@
-from .base import BaseProtocol, BaseHoneypot
 import asyncio
-import os, base64, random
+import base64
+import os
+import random
+
+from .base import BaseHoneypot, BaseProtocol
 
 
 class RsyncProtocol(BaseProtocol):
@@ -62,7 +65,7 @@ class RsyncProtocol(BaseProtocol):
                 return
 
             # Handle authentication response
-            elif self.expected_auth:
+            if self.expected_auth:
                 auth_data = data.decode().strip().split(" ", 1)
                 if len(auth_data) != 2:
                     self.logger.log(self.protocol_name + "." + self.logger.LOGIN, self.transport, extra={"username": auth_data})
@@ -77,9 +80,8 @@ class RsyncProtocol(BaseProtocol):
                 self.expected_auth = False  # Reset authentication state
                 return
 
-            else:
-                self.logger.log(self.protocol_name + "." + self.logger.QUERY, self.transport, extra={"module": module})
-                self.transport.write(f"@ERROR: unknown module '{module}'\n".encode())
+            self.logger.log(self.protocol_name + "." + self.logger.QUERY, self.transport, extra={"module": module})
+            self.transport.write(f"@ERROR: unknown module '{module}'\n".encode())
 
     def generate_challenge(self):
         """Generate a base64 random challenge string (16 bytes)."""

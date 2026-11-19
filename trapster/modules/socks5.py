@@ -1,4 +1,5 @@
-from trapster.modules.base import BaseProtocol, BaseHoneypot
+from trapster.modules.base import BaseHoneypot, BaseProtocol
+
 
 class Socks5Protocol(BaseProtocol):
     '''based on RFC 1928 (https://datatracker.ietf.org/doc/html/rfc1928) '''
@@ -67,7 +68,7 @@ class Socks5Protocol(BaseProtocol):
 class Socks5Honeypot(BaseHoneypot):
     service_name = "socks5"
 
-   def __init__(self, config, logger, bindaddr="0.0.0.0"):
+    def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
         self.handler = lambda: Socks5Protocol(config=config)
         self.handler.logger = logger

@@ -1,5 +1,3 @@
-from trapster.modules.base import BaseProtocol, BaseHoneypot
-
 import asyncio
 import datetime
 import os
@@ -8,11 +6,13 @@ import ssl
 import struct
 from pathlib import Path
 
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization, hashes
 from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
+
+from trapster.modules.base import BaseHoneypot, BaseProtocol
 
 # RDP Security Protocol constants (MS-RDPBCGR 2.2.1.2.1)
 PROTOCOL_RDP      = 0x00000000
@@ -191,10 +191,9 @@ class RdpProtocol(BaseProtocol):
         n = len(value)
         if n < 0x80:
             return bytes([tag, n]) + value
-        elif n < 0x100:
+        if n < 0x100:
             return bytes([tag, 0x81, n]) + value
-        else:
-            return bytes([tag, 0x82, n >> 8, n & 0xff]) + value
+        return bytes([tag, 0x82, n >> 8, n & 0xff]) + value
 
     def _build_ntlm_challenge(self):
         """Build an NTLM Type 2 (Challenge) message with realistic OS/host metadata."""
@@ -428,9 +427,9 @@ class RdpHoneypot(BaseHoneypot):
             .issuer_name(issuer)
             .public_key(key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+            .not_valid_before(datetime.datetime.now(datetime.UTC))
             .not_valid_after(
-                datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=3650)
+                datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=3650)
             )
             .add_extension(
                 x509.ExtendedKeyUsage([x509.oid.ExtendedKeyUsageOID.SERVER_AUTH]),
