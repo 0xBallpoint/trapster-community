@@ -1,9 +1,11 @@
-from trapster.modules.base import BaseProtocol, BaseHoneypot, UdpTransporter
-
 import asyncio
 import logging
+
 from scapy.all import SNMP
 from scapy.error import Scapy_Exception
+
+from trapster.modules.base import BaseHoneypot, BaseProtocol, UdpTransporter
+
 
 class SnmpUdpProtocol(BaseProtocol):
     '''

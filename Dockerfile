@@ -1,14 +1,29 @@
+# ============================================
+# Stage 1: locked Python dependencies
+# ============================================
+FROM python:3.11-slim AS python-deps
+
+# uv is only used here: the final image gets /venv, not uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.9 /uv /usr/local/bin/uv
+
+WORKDIR /lock
+
+# Dependencies from uv.lock, checked against their sha256 hashes.
+# --locked: fail if uv.lock is out of date. --no-build: wheels only.
+COPY pyproject.toml uv.lock ./
+RUN UV_PROJECT_ENVIRONMENT=/venv UV_PYTHON_DOWNLOADS=never \
+    UV_COMPILE_BYTECODE=1 UV_NO_CACHE=1 \
+    uv sync --locked --no-build --no-install-project
+
+# ============================================
+# Stage 2: final image
+# ============================================
 FROM python:3.11-slim
 
+COPY --from=python-deps /venv /venv
+ENV PATH="/venv/bin:$PATH"
+
 WORKDIR /app
-
-# Copy setup files first to leverage cache for dependency installation
-COPY requirements.txt setup.py MANIFEST.in README.md /app/
-COPY trapster/__init__.py /app/trapster/__init__.py
-
-# Install the package with AI features enabled
-# This will install both base requirements and AI extras
-RUN pip install --no-cache-dir .[ai]
 
 # Create configuration directory
 RUN mkdir -p /etc/trapster

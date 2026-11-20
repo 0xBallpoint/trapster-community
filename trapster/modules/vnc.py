@@ -1,7 +1,6 @@
-from trapster.modules.base import BaseProtocol, BaseHoneypot
-
 import binascii
-from typing import Optional
+
+from trapster.modules.base import BaseHoneypot, BaseProtocol
 
 #TODO add SSL support
 
@@ -81,7 +80,7 @@ class VncProtocol(BaseProtocol):
     def unrecognized_data(self, data):
         self.transport.close()
 
-    def connection_lost(self, exc: Optional[Exception]) -> None:
+    def connection_lost(self, exc: Exception | None) -> None:
         self.state = 0
         self.transport.close()
 

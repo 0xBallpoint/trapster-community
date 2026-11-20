@@ -1,6 +1,7 @@
-from trapster.modules.base import BaseProtocol, BaseHoneypot
-
 from struct import unpack
+
+from trapster.modules.base import BaseHoneypot, BaseProtocol
+
 
 class PostgresProtocol(BaseProtocol):
     '''based on https://github.com/qeeqbox/honeypots/blob/main/honeypots/postgres_server.py'''
@@ -54,14 +55,13 @@ class PostgresProtocol(BaseProtocol):
     def check_bytes(self, string):
         if isinstance(string, bytes):
             return string.decode()
-        else:
-            return str(string)
+        return str(string)
 
     def read_data_custom(self, data):
         _data = data.decode('utf-8')
-        length = unpack('!I', data[0:4])
+        unpack('!I', data[0:4])
         encoded_list = (_data[8:-1].split('\x00'))
-        self._variables = dict(zip(*([iter(encoded_list)] * 2)))
+        self._variables = dict(zip(*([iter(encoded_list)] * 2), strict=False))
 
     def read_password_custom(self, data):
         data = data.decode('utf-8')

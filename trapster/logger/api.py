@@ -2,7 +2,9 @@ from .output import OutputLogger
 
 
 class ApiLogger(OutputLogger):
-    def __init__(self, node_id, url, headers={}, event_format="default", format_kwargs=None):
+    def __init__(self, node_id, url, headers=None, event_format="default", format_kwargs=None):
+        if headers is None:
+            headers = {}
         super().__init__(
             node_id=node_id,
             output="api",

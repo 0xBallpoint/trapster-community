@@ -23,7 +23,7 @@ def set_logger(config):
                 "EcsLogger": EcsLogger,
             }
 
-            logger_class = allowed_loggers.get(logger_name, None)
+            logger_class = allowed_loggers.get(logger_name)
             kwargs = logger_cfg.get("kwargs", {})
             if logger_class is None:
                 raise ValueError(f"Unsupported logger type: {logger_name}")
@@ -32,7 +32,7 @@ def set_logger(config):
                 logger = logger_class(node_id, **kwargs)
             except Exception as e:
                 logging.error(f"[-] Invalid logger: {e}")
-                return
+                return None
         elif logger_cfg.get("output"):
             kwargs = logger_cfg.get("kwargs", {})
             output_kwargs = kwargs.get("output_kwargs")

@@ -1,11 +1,16 @@
-from trapster.modules.base import BaseProtocol, BaseHoneypot
+import asyncio
+import datetime
+import ipaddress
+import logging
+import os
+import random
 
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa, ed25519
-from cryptography.hazmat.primitives.asymmetric import ec
+import asyncssh
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, ed25519, rsa
 
-import asyncio, asyncssh, os, datetime, logging, random, ipaddress
+from trapster.modules.base import BaseHoneypot, BaseProtocol
 
 # Optional AI import - gracefully handle when AI dependencies aren't installed
 try:
@@ -126,7 +131,7 @@ Last login: {last_dt.strftime('%a %b %d %H:%M:%S %Y')} from {last_ip}
             process.close()
             return
         except asyncssh.misc.TerminalSizeChanged:
-            process.stdout.write(f'\r')
+            process.stdout.write('\r')
             continue
 
         except Exception as e:

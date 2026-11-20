@@ -2,21 +2,14 @@
 from __future__ import annotations
 
 import logging
-from pathlib import Path
-from typing import Dict, Any
 import os
-from openai import AsyncOpenAI
-from agents import (
-    Agent,
-    OpenAIChatCompletionsModel,
-    Runner,
-    SQLiteSession,
-    set_tracing_disabled,
-    ModelSettings,
-    ModelSettings
-)
+from pathlib import Path
+from typing import Any
 
+from agents import Agent, ModelSettings, OpenAIChatCompletionsModel, Runner, SQLiteSession, set_tracing_disabled
 from dotenv import load_dotenv
+from openai import AsyncOpenAI
+
 load_dotenv()
 
 class ai_agent(Agent):
@@ -73,7 +66,7 @@ class ai_agent(Agent):
             self.sessions[session_id] = sess
         return sess
 
-    async def make_query(self, session_id: str, command: str) -> Dict[str, Any]:
+    async def make_query(self, session_id: str, command: str) -> dict[str, Any]:
         try:
             result = await Runner.run(self, command, session=self._ensure_session(session_id))
             

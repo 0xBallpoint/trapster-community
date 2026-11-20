@@ -1,19 +1,23 @@
 import asyncio
+import base64
 import hashlib
 import ipaddress
 import logging
+import mimetypes
+import random
+import re
 import secrets
-
-from starlette.requests import ClientDisconnect
-from fastapi import FastAPI, Request, Response
-
-from jinja2.sandbox import ImmutableSandboxedEnvironment
-from jinja2 import FileSystemLoader, Undefined
-import yaml
-import random, string, base64, mimetypes, re, uuid
-from urllib.parse import parse_qsl, quote
-from datetime import datetime, timezone
+import string
+import uuid
+from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import parse_qsl, quote
+
+import yaml
+from fastapi import FastAPI, Request, Response
+from jinja2 import FileSystemLoader, Undefined
+from jinja2.sandbox import ImmutableSandboxedEnvironment
+from starlette.requests import ClientDisconnect
 
 mimetypes.add_type('image/x-icon', '.ico')
 
@@ -45,8 +49,8 @@ def _patch_hypercorn_reason():
     standard reason phrase instead of the configured one.
     """
     try:
-        from hypercorn.protocol import h11 as hyper_h11
         import h11 as h11lib
+        from hypercorn.protocol import h11 as hyper_h11
     except Exception:
         return
 
@@ -173,7 +177,9 @@ class HttpHandler:
         form = {}
         if request.method in ["POST", "PUT", "PATCH"]:
             raw = await request.body()
-            body = raw.decode() if raw else None
+            # Attacker bodies are not always UTF-8; a strict decode would turn
+            # them into a 500 (same replacement as log() uses).
+            body = raw.decode('utf-8', errors='replace') if raw else None
             # Parse form-urlencoded bodies so templates can reflect fields back
             # (e.g. the submitted username). Last value wins for repeated keys.
             ctype = request.headers.get("content-type", "")
@@ -312,7 +318,7 @@ class HttpHandler:
         )
         env.globals.update({
             'random': self.random_filter,
-            'get_current_time': lambda: datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT'),
+            'get_current_time': lambda: datetime.now(UTC).strftime('%a, %d %b %Y %H:%M:%S GMT'),
             'uuid': lambda: str(uuid.uuid4()),
             'vars': self.http_config.get('vars', {}),
             'etag': getattr(self, '_etag_fn', self.make_etag_fn(getattr(self, '_deploy_seed', ''))),
@@ -596,7 +602,7 @@ class HttpHandler:
         # skin's files/ directory (LFI). Anything outside falls through to the
         # normal default response, so a probe looks like an ordinary 404.
         try:
-            static_root = self.static_folder.resolve()
+            self.static_folder.resolve()
             base = self.static_folder.resolve()
             file_path = (self.static_folder / rel).resolve()
             file_path.relative_to(base)
@@ -802,7 +808,7 @@ class HeaderCapitalizationMiddleware:
                     date_name = b"Date"
 
                 if not has_date:
-                    date_val = datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+                    date_val = datetime.now(UTC).strftime("%a, %d %b %Y %H:%M:%S GMT")
                     headers.append([date_name, date_val.encode("latin1")])
 
                 message["headers"] = headers

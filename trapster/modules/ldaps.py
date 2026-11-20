@@ -1,16 +1,16 @@
-from trapster.modules.ldap import LdapProtocol, LdapHoneypot
-
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography import x509
-from cryptography.x509.oid import NameOID
+import asyncio
+import datetime
+import logging
+import ssl
 from pathlib import Path
 
-import datetime
-import ssl
-import asyncio
-import logging
+from cryptography import x509
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
+
+from trapster.modules.ldap import LdapHoneypot, LdapProtocol
 
 
 def _has_content(path):
@@ -18,11 +18,20 @@ def _has_content(path):
     return path.is_file() and path.stat().st_size > 0
 
 
+class LdapsProtocol(LdapProtocol):
+    def __init__(self, config=None):
+        super().__init__(config=config)
+        self.protocol_name = "ldaps"
+
+
 class LdapsHoneypot(LdapHoneypot):
     service_name = "ldaps"
 
     def __init__(self, config, logger, bindaddr="0.0.0.0"):
         super().__init__(config, logger, bindaddr)
+        self.handler = lambda: LdapsProtocol(config=config)
+        self.handler.logger = logger
+        self.handler.config = config
 
         self.key_path  = Path(config.get("key")         or "trapster/data/ssl/ldaps/key.pem")
         self.cert_path = Path(config.get("certificate") or "trapster/data/ssl/ldaps/certificate.pem")
@@ -60,9 +69,9 @@ class LdapsHoneypot(LdapHoneypot):
             .issuer_name(issuer)
             .public_key(key.public_key())
             .serial_number(x509.random_serial_number())
-            .not_valid_before(datetime.datetime.now(datetime.timezone.utc))
+            .not_valid_before(datetime.datetime.now(datetime.UTC))
             .not_valid_after(
-                datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=3650)
+                datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=3650)
             )
             .add_extension(
                 x509.ExtendedKeyUsage([x509.oid.ExtendedKeyUsageOID.SERVER_AUTH]),

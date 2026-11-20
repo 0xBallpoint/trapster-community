@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
 import binascii
+from datetime import UTC, datetime
 
 
-class BaseLogger(object):
+class BaseLogger:
     CONNECTION = "connection"
     DATA = "data"
     LOGIN = "login"
@@ -13,7 +13,9 @@ class BaseLogger(object):
         self.whitelist_ips = []
         self.type = "Base"
 
-    def parse_log(self, logtype, transport, data='', extra={}):
+    def parse_log(self, logtype, transport, data='', extra=None):
+        if extra is None:
+            extra = {}
         try:
             dst_ip, dst_port = transport.get_extra_info('sockname')
         except Exception:
@@ -28,7 +30,7 @@ class BaseLogger(object):
             src_port = extra.pop("src_port", 1)
 
         if src_ip in self.whitelist_ips or dst_ip == "255.255.255.255":
-            return
+            return None
 
         if data:
             data = binascii.hexlify(data).decode()
@@ -40,11 +42,13 @@ class BaseLogger(object):
             "dst_port": dst_port,
             "src_ip": src_ip,
             "src_port": src_port,
-            "timestamp": datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S.%f'),
+            "timestamp": datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S.%f'),
             "data": data,
             "extra": extra,
         }
         return event
 
-    def log(self, logtype, transport, data='', extra={}):
+    def log(self, logtype, transport, data='', extra=None):
+        if extra is None:
+            extra = {}
         return self.parse_log(logtype, transport, data, extra)

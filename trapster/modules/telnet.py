@@ -1,4 +1,4 @@
-from trapster.modules.base import BaseProtocol, BaseHoneypot
+from trapster.modules.base import BaseHoneypot, BaseProtocol
 
 # Telnet command definitions
 IAC  = b'\xff'  # Interpret as Command
@@ -102,6 +102,7 @@ class TelnetProtocol(BaseProtocol):
         self.username = b''
         self.password = b''
         self.state = 'USERNAME'
+        self.after_cr = False
 
     def connection_made(self, transport):
         self.transport = transport
@@ -159,18 +160,36 @@ class TelnetProtocol(BaseProtocol):
         if data == b"\x7f":  # DEL character
             self.erase_character()
 
-        if self.state == 'USERNAME':
-            if b'\n' in data or b'\r' in data:
+        # The "\n" or "\0" closing a "\r" sent in an earlier packet
+        if self.after_cr and data[:1] in (b'\n', b'\x00'):
+            data = data[1:]
+        self.after_cr = False
+
+        # Clients send one key at a time (character mode) or a whole line at
+        # once (line mode, bots): keep the text before each line ending.
+        while data:
+            ends = [i for i in (data.find(b'\r'), data.find(b'\n')) if i != -1]
+            end = min(ends) if ends else len(data)
+            text, data = data[:end], data[end:]
+
+            if self.state == 'USERNAME':
+                self.username += text
+                self.transport.write(text)
+            elif self.state == 'PASSWORD':
+                self.password += text
+
+            if not ends:
+                return
+            # "\r\n" and "\r\0" are one line ending
+            self.after_cr = data == b'\r'
+            data = data[2:] if data[:2] in (b'\r\n', b'\r\x00') else data[1:]
+
+            if self.state == 'USERNAME':
                 self.transport.write(b"\r\nPassword: ")
                 self.state = 'PASSWORD'
-            else:
-                self.username += data
-                self.transport.write(data)
-        elif self.state == 'PASSWORD':
-            if b'\n' in data or b'\r' in data:
+            elif self.state == 'PASSWORD':
                 self.authenticate()
-            else:
-                self.password += data
+                return
 
     def erase_character(self):
         # Intentionally not removing data from self.username or self.password, to keep informations

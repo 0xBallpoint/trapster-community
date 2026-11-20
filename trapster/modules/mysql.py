@@ -1,7 +1,7 @@
-from trapster.modules.base import BaseProtocol, BaseHoneypot
-
-import struct
 import os
+import struct
+
+from trapster.modules.base import BaseHoneypot, BaseProtocol
 
 #TODO Switch paquet for clear text password  def auth_switch_request(self, seq_no):
 
@@ -54,8 +54,13 @@ class MysqlProtocol(BaseProtocol):
             self.connection_lost(None)
             return
      
-        max_size = int.from_bytes(data[0x08:0x0C], byteorder='little')
-        username_end = data.index(b'\x00', 0x24, max_size - 0x24)
+        # Malformed login packet (no NUL-terminated username, or no password
+        # length after it): answer like MySQL does and hang up.
+        username_end = data.find(b'\x00', 0x24)
+        if username_end == -1 or username_end + 1 >= len(data):
+            self.transport.write(self.build_packet(self.bad_handshake(), 2))
+            self.transport.close()
+            return
         username = data[0x24:username_end].decode(errors='backslashreplace')
 
         password_len = data[username_end + 1]
@@ -75,7 +80,7 @@ class MysqlProtocol(BaseProtocol):
 
         self.transport.write(
             self.build_packet(
-                self.auth_failed("Access denied for user '{}'@'{}' (using password: {})".format(username, peer_ip, using_password)),
+                self.auth_failed(f"Access denied for user '{username}'@'{peer_ip}' (using password: {using_password})"),
                 2
             )
         )
@@ -120,8 +125,12 @@ class MysqlProtocol(BaseProtocol):
         message = message.encode()
 
         packet = error_packet + error_code + sql_state + message
-        
+
         return packet
+
+    def bad_handshake(self):
+        # ER_HANDSHAKE_ERROR (1043), what MySQL sends for an unparsable login packet
+        return b'\xFF' + b'\x13\x04' + b'#08S01' + b'Bad handshake'
 
 
     def build_packet(self, payload, id):

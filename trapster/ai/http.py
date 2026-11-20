@@ -1,11 +1,12 @@
 
 from __future__ import annotations
 
-from typing import Dict, Any
-from agents import (
-    Runner
-)
+from typing import Any
+
+from agents import Runner
+
 from trapster.ai.base import ai_agent
+
 
 class HTTPAgent(ai_agent):
     def __init__(
@@ -41,7 +42,7 @@ Key Instructions:
                         return content[0]["text"]
         return None
 
-    async def make_query(self, session_id: str, command: str) -> Dict[str, Any]:
+    async def make_query(self, session_id: str, command: str) -> dict[str, Any]:
         cached_response = await self.get_cached_response(session_id, command)
         if cached_response is not None:
             return cached_response

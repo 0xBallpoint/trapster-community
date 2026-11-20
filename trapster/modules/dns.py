@@ -1,8 +1,10 @@
-from trapster.modules.base import BaseProtocol, BaseHoneypot, UdpTransporter
-from trapster.libs import dns
+import asyncio
+import logging
 
-import asyncio, logging
-        
+from trapster.libs import dns
+from trapster.modules.base import BaseHoneypot, BaseProtocol, UdpTransporter
+
+
 class EchoClientProtocol(asyncio.DatagramProtocol):
     def __init__(self, message, on_con_lost):
         self.message = message

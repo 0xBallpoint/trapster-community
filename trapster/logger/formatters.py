@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
 import ipaddress
+from datetime import UTC, datetime
 
 
 class DefaultFormatter:
@@ -63,7 +63,7 @@ class EcsFormatter:
     @staticmethod
     def _to_utc_iso(timestamp):
         if not timestamp:
-            return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
         if isinstance(timestamp, datetime):
             dt = timestamp
@@ -73,18 +73,18 @@ class EcsFormatter:
                 try:
                     dt = datetime.strptime(timestamp, fmt)
                     break
-                except Exception:
+                except (TypeError, ValueError):
                     continue
 
             if dt is None:
-                return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+                return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
         try:
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+                dt = dt.replace(tzinfo=UTC)
+            return dt.astimezone(UTC).isoformat().replace("+00:00", "Z")
         except Exception:
-            return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
     @staticmethod
     def _infer_network_type(*ips):

@@ -3,7 +3,6 @@ import struct
 # details of dns packet : https://courses.cs.duke.edu/fall16/compsci356/DNS/DNS-primer.pdf
 # code from https://stackoverflow.com/questions/16977588/reading-dns-packets-in-python
 
-import struct
 
 def decode_labels(message, offset):
     labels = []
@@ -38,7 +37,7 @@ def decode_labels(message, offset):
         if length == 0:
             return labels, return_offset if return_offset is not None else offset
 
-        labels.append(*struct.unpack_from("!%ds" % length, message, offset))
+        labels.append(*struct.unpack_from(f"!{length}s", message, offset))
         try:
             labels[-1] = labels[-1].decode()
         except UnicodeDecodeError:
@@ -70,34 +69,37 @@ def decode_question_section(message, offset, qdcount):
 DNS_QUERY_MESSAGE_HEADER = struct.Struct("!6H")
 
 def decode_dns_message(message):
+    try:
+        id, flags, qdcount, ancount, nscount, arcount = DNS_QUERY_MESSAGE_HEADER.unpack_from(message)
+        
+        qr = (flags & 0x8000) != 0 
+        opcode = (flags & 0x7800) >> 11 
+        aa = (flags & 0x0400) != 0 
+        tc = (flags & 0x200) != 0 
+        rd = (flags & 0x100) != 0 
+        ra = (flags & 0x80) != 0
+        z = (flags & 0x70) >> 4
+        rcode = flags & 0xF
 
-    id, flags, qdcount, ancount, nscount, arcount = DNS_QUERY_MESSAGE_HEADER.unpack_from(message)
-    
-    qr = (flags & 0x8000) != 0 
-    opcode = (flags & 0x7800) >> 11 
-    aa = (flags & 0x0400) != 0 
-    tc = (flags & 0x200) != 0 
-    rd = (flags & 0x100) != 0 
-    ra = (flags & 0x80) != 0
-    z = (flags & 0x70) >> 4
-    rcode = flags & 0xF
+        offset = DNS_QUERY_MESSAGE_HEADER.size
+        questions, offset = decode_question_section(message, offset, qdcount)
 
-    offset = DNS_QUERY_MESSAGE_HEADER.size
-    questions, offset = decode_question_section(message, offset, qdcount)
+        result = {"id": id,
+                "is_response": qr,
+                "opcode": opcode,
+                "is_authoritative": aa,
+                "is_truncated": tc,
+                "recursion_desired": rd,
+                "recursion_available": ra,
+                "reserved": z,
+                "response_code": rcode,
+                "question_count": qdcount,
+                "answer_count": ancount,
+                "authority_count": nscount,
+                "additional_count": arcount,
+                "questions": questions}
 
-    result = {"id": id,
-              "is_response": qr,
-              "opcode": opcode,
-              "is_authoritative": aa,
-              "is_truncated": tc,
-              "recursion_desired": rd,
-              "recursion_available": ra,
-              "reserved": z,
-              "response_code": rcode,
-              "question_count": qdcount,
-              "answer_count": ancount,
-              "authority_count": nscount,
-              "additional_count": arcount,
-              "questions": questions}
+        return result
+    except struct.error as e:
+        raise ValueError(f"truncated DNS message: {e}") from e
 
-    return result

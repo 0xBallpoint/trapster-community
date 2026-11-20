@@ -1,7 +1,6 @@
 import asyncio
 import errno
 import logging
-from typing import Optional
 
 # https://svn.nmap.org/nmap/nmap-service-probes
 
@@ -11,7 +10,7 @@ class ProtocolError(Exception):
 class UnsupportedVersion(Exception):
     pass
 
-class UdpTransporter():
+class UdpTransporter:
     def __init__(self, dst_ip = "0.0.0.0", dst_port=1, src_ip="0.0.0.0", src_port=1):
         self.dst_ip = dst_ip
         self.dst_port = dst_port
@@ -22,10 +21,9 @@ class UdpTransporter():
         #https://docs.python.org/3/library/asyncio-protocol.html
         if name == 'sockname':
             return self.dst_ip, self.dst_port
-        elif name == 'peername':
+        if name == 'peername':
             return self.src_ip, self.src_port
-        else:
-            return None
+        return None
 
 class BaseProtocol(asyncio.Protocol):
     """common class to all protocol handler"""
@@ -41,14 +39,14 @@ class BaseProtocol(asyncio.Protocol):
         self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
         self.transport.close()
 
-    def connection_lost(self, exc: Optional[Exception]) -> None:
+    def connection_lost(self, exc: Exception | None) -> None:
         self.transport.close()
 
     def unrecognized_data(self, data):
         self.logger.log(self.protocol_name + "." + self.logger.DATA, self.transport, data=data)
         self.transport.close()
 
-class BaseHoneypot(object):
+class BaseHoneypot:
     """common class to all trapster instance"""
 
     service_name = "base"
@@ -64,7 +62,7 @@ class BaseHoneypot(object):
 
     def _log_bind_error(self, exc: Exception = None):
         if isinstance(exc, OSError) and exc.errno == errno.EACCES:
-            reason = f"permission denied"
+            reason = "permission denied"
         elif isinstance(exc, OSError) and exc.errno == errno.EADDRINUSE:
             reason = "address already in use"
         elif isinstance(exc, OSError):
