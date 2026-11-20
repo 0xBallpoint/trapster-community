@@ -1,6 +1,5 @@
 
 [build-system]
-# Pinned, and kept equal to the "build" group below: the release workflow
 requires = ["setuptools==84.2.1"]
 build-backend = "setuptools.build_meta"
 
@@ -78,21 +77,15 @@ version = { attr = "trapster.__version__" }
 include = ["trapster", "trapster.*"]
 
 [tool.uv]
-# No group is installed unless asked for (--group), so the Docker image never
-# gets the build or dev tools.
+# Groups are only installed when asked for (--group)
 default-groups = []
-# Supply-chain cooldown: only versions published at least 7 days ago may
-# enter uv.lock.
+# Only lock versions published at least 7 days ago
 exclude-newer = "P7D"
-# Urgent security fix released less than 7 days ago: lift the cooldown for
-# that one package only, with the reason, then run
-# `UPGRADE=<name> scripts/python-lock.sh`. Remove the entry once the release
-# is 7 days old. 
+# Urgent fix for a newer release: exempt that package only, then run
+# `UPGRADE=<name> scripts/python-lock.sh`. Remove it once the release is 7 days old.
 # exclude-newer-package = { httpx = false }  # CVE-XXXX-YYYY
 
-# Run with:
-#   uv sync --locked --no-build --no-install-project --group dev
-#   uv run --no-sync ruff check
+# Run with: uv sync --locked --no-build --no-install-project --group dev && .venv/bin/ruff check
 [tool.ruff]
 target-version = "py311"
 line-length = 119

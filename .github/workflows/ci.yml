@@ -1,8 +1,6 @@
 name: CI
 
-# Runs on every pull request (Renovate's included) and on main. Every action is
-# pinned to a commit SHA: a tag can be moved to malicious code, a SHA cannot.
-# Renovate updates the SHAs with the same 7-day cooldown as the dependencies.
+# Actions are pinned to commit SHAs
 on:
   pull_request:
   push:
@@ -12,10 +10,8 @@ permissions:
   contents: read
 
 env:
-  # Same uv as the Dockerfile, scripts/python-lock.sh and Renovate
-  # (constraints.uv in renovate.json5).
+  # Same uv version as the Dockerfile and scripts/python-lock.sh
   UV_VERSION: '0.13.9'
-  # Use the runner's Python (setup-python), never one downloaded by uv.
   UV_PYTHON_DOWNLOADS: never
 
 jobs:
@@ -33,7 +29,6 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
-      # Fails if pyproject.toml was changed without regenerating uv.lock.
       - name: Check uv.lock is up to date
         run: uv lock --check
 
@@ -51,10 +46,8 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
-      # Only the "dev" group (ruff), hash-checked from uv.lock.
       - name: Install locked ruff
         run: uv sync --locked --no-build --no-install-project --only-group dev
-      # GitHub annotations: findings show on the changed lines of the PR.
       - name: Run ruff
         run: uv run --no-sync ruff check --output-format=github
 
@@ -72,8 +65,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: false
-      # Same options as the Dockerfile: hash-checked, wheels only, refuses an
-      # out-of-date uv.lock.
+      # Same install as the Dockerfile
       - name: Install locked dependencies
         run: uv sync --locked --no-build --no-install-project
       - name: Run tests
