@@ -60,9 +60,14 @@
     },
 
     {
+      // uv is found as a Docker image (Dockerfile, workflows, python-lock.sh)
+      // and as a PyPI package (constraints.uv below): one PR for every file
+      matchPackageNames: ['ghcr.io/astral-sh/uv', 'uv'],
+      groupName: 'uv',
+    },
+    {
       // Python and uv version changes are done by hand
-      matchDatasources: ['docker'],
-      matchPackageNames: ['python', 'ghcr.io/astral-sh/uv'],
+      matchPackageNames: ['python', 'ghcr.io/astral-sh/uv', 'uv'],
       matchUpdateTypes: ['major', 'minor'],
       enabled: false,
     },
@@ -74,7 +79,7 @@
     },
   ],
 
-  // uv version Renovate uses to regenerate uv.lock
+  // uv version Renovate uses to regenerate uv.lock (Renovate updates it itself)
   constraints: {
     uv: '0.13.9',
   },
@@ -97,15 +102,6 @@
       ],
       // UV_VERSION=0.13.9 (shell) or UV_VERSION: '0.13.9' (YAML)
       matchStrings: ["UV_VERSION[=:] ?'?(?<currentValue>\\d[^'\\s]*)"],
-      depNameTemplate: 'ghcr.io/astral-sh/uv',
-      datasourceTemplate: 'docker',
-    },
-    {
-      // uv version Renovate itself uses (constraints.uv above)
-      customType: 'regex',
-      managerFilePatterns: ['/(^|/)renovate\\.json5$/'],
-      // \d: must not match this pattern itself.
-      matchStrings: ["uv: '(?<currentValue>\\d[^']*)'"],
       depNameTemplate: 'ghcr.io/astral-sh/uv',
       datasourceTemplate: 'docker',
     },
