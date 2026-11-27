@@ -26,7 +26,7 @@ setup(
     install_requires=requirements,
     extras_require={
         'ai': [
-            'openai<1.99.0',
+            'openai<3.60.1',
             'openai-agents>=0.2.5',
         ],
     },
